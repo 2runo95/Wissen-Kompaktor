@@ -1,84 +1,92 @@
-# Wissen-Kompaktor 🧠⚡
+# Wissen-Kompaktor 🧠
 
-Wissen-Kompaktor ist ein kleines Web-Tool, mit dem du Texte direkt im Browser verdichten kannst:
+Ein schlankes Web-Tool, mit dem du Texte:
 
-- **Zusammenfassung** (normal)
-- **Stichpunkte**
-- **Lernkarten** (Frage–Antwort)
-- **Für Kinder erklärt**
-- **In 5 Sätzen**
+- **zusammenfassen**
+- in **Stichpunkte** umwandeln
+- als **Lernkarten** (Frage/Antwort)
+- **für Kinder erklärt**
+- oder **in 5 Sätzen** kurz zusammengefasst
 
-Ideal zum Lernen, Wiederholen, Erklären und kompakt machen von Fachtexten.
+direkt im Browser aufbereiten kannst.
 
----
-
-## 🚀 Live-Demo
-
-> Öffentlich erreichbar unter deiner Render-Frontend-URL, z. B.:  
-> `https://DEINE-STATIC-URL.onrender.com`  
-> *(hier im Repo bitte die echte URL eintragen)*
+Das Projekt besteht aus einem **FastAPI-Backend** (Python) und einem **React/TypeScript-Frontend** mit Tailwind CSS.  
+Die KI-Funktionen laufen über die OpenAI API.
 
 ---
 
-## 🧩 Features
+## 🌍 Live-Version
 
-- ✂️ **Zusammenfassungen** langer Texte  
-- 📌 **Stichpunkte** als strukturierte Bullet-List  
-- 🎓 **Lernkarten** (Q&A-Karten) für Prüfungen / Lernen  
-- 👶 **Für Kinder erklärt** – gleiche Inhalte in einfacher Sprache  
-- 🧾 **In 5 Sätzen** – ultrakurze Summary  
-- 📋 **Kopieren-Button** für alle Modi  
-- 💾 **Export** (z. B. als Text / später PDF / Bild)  
-- 🕒 **History-Reiter „Zuletzt gemacht“** (letzte Ergebnisse im Browser behalten)  
-- 🌙 **Modernes Dark-UI** mit Tailwind CSS  
-- 🖥️ Funktioniert im Browser auf Desktop, Laptop, Tablet & Handy
+Frontend: **`https://DEINE-FRONTEND-URL.onrender.com`**  
+Backend: **`https://DEIN-BACKEND-NAME.onrender.com`**
+
+> Ersetze die Platzhalter oben durch deine echten Render-URLs.
 
 ---
 
-## 🏗️ Tech-Stack
+## ✨ Features
+
+- 📑 **Mehrere Modi**
+  - *Zusammenfassung*
+  - *Stichpunkte*
+  - *Lernkarten*
+  - *Für Kinder erklärt*
+  - *In 5 Sätzen*
+- 📚 **Lernkarten-Generator**  
+  Aus einem Fließtext werden automatisch Frage/Antwort-Karten erstellt.
+- 🧒 **Kinder-Modus**  
+  Erklärt den Text in einfacher Sprache für Kinder im Alter von ca. 10–12 Jahren.
+- 🕵️ **Kurzfassung in 5 Sätzen**  
+  Ideal, um sich schnell einen Überblick zu verschaffen.
+- 📝 **History-Reiter „Zuletzt gemacht“**  
+  Zeigt die letzten Ergebnisse an.
+- 📋 **Kopieren & Export**  
+  Ergebnisse können kopiert oder als Datei gespeichert werden (.txt, .pdf – je nach aktuellem Stand).
+- 🍪 **Cookie-Banner mit Consent**  
+  Nur bei Zustimmung werden Werbebanner / Tracking aktiviert.
+- 📜 **Impressum & Datenschutz**  
+  Statische Seiten gemäß deutscher Anforderungen verlinkt.
+
+---
+
+## 🧱 Tech-Stack
 
 **Frontend**
 
 - React + TypeScript
 - Vite
 - Tailwind CSS
+- Fetch-API zum Aufruf des Backends
 
 **Backend**
 
-- Python 3
+- Python 3.13
 - FastAPI
 - Uvicorn
-- OpenAI API (`gpt-4.1-mini` via `responses.create`)
+- `python-dotenv`
+- OpenAI Python SDK
 
 **Hosting**
 
-- Render.com  
-  - Webservice für das Backend (FastAPI)  
-  - Static Site für das Frontend (gebaute Vite-App)
+- Frontend: Render (Static Site)
+- Backend: Render (Web Service, Uvicorn)
 
 ---
 
-## 📁 Projektstruktur
+## 🚀 Lokale Entwicklung
 
-```text
-Wissen-Kompaktor/
-├─ backend/
-│  ├─ main.py              # FastAPI App, /api/compact Endpoint
-│  ├─ prompts.py           # Prompt-Bausteine für die verschiedenen Modi
-│  ├─ processors/
-│  │  ├─ summary.py        # Verarbeitung für Zusammenfassung
-│  │  ├─ bullets.py        # Verarbeitung für Stichpunkte
-│  │  ├─ flashcards.py     # Verarbeitung für Lernkarten
-│  │  └─ simple.py         # Verarbeitung für Sondermodi (z.B. Kids / 5 Sätze)
-│  └─ requirements.txt     # Python-Abhängigkeiten
-│
-├─ frontend/
-│  ├─ src/
-│  │  ├─ App.tsx           # React-UI, Modi-Logik, Requests ans Backend
-│  │  └─ main.tsx          # Einstiegspunkt React
-│  ├─ index.html
-│  ├─ package.json
-│  └─ vite.config.ts
-│
-├─ .gitignore
-└─ README.md
+### Voraussetzungen
+
+- Node.js (empfohlen LTS)
+- Python 3.11+
+- Ein OpenAI API Key
+
+---
+
+### 1️⃣ Backend lokal starten
+
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate         # Windows PowerShell
+pip install -r requirements.txt
