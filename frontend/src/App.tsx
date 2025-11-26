@@ -31,6 +31,7 @@ const MODES: { id: Mode; label: string }[] = [
   { id: "short", label: "In 5 Sätzen" },
 ];
 
+const API_BASE = "https://wissen-kompaktor.onrender.com;"
 const HISTORY_KEY = "wk_history_v1";
 
 const App: React.FC = () => {
