@@ -134,7 +134,7 @@ const App: React.FC = () => {
   };
 
   // ─────────────────────────────────────────────
-  // Datei-Upload (z.B. PDF)
+  // Datei-Upload (PDF + Bilder)
   // ─────────────────────────────────────────────
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -363,8 +363,8 @@ const App: React.FC = () => {
         <AdBanner cookieConsent={cookieConsent} />
 
         <p className="text-slate-400 mb-6 text-sm sm:text-base">
-          Fasse Texte zusammen, mach Bulletpoints oder Lernkarten – direkt
-          im Browser.
+          Komprimiere Inhalte intelligent – Zusammenfassungen, Stichpunkte,
+          Lernkarten & mehr – direkt im Browser.
         </p>
 
         {/* Modus-Auswahl */}
@@ -410,14 +410,14 @@ const App: React.FC = () => {
             {/* Datei-Upload */}
             <div className="mt-4">
               <label className="text-xs font-medium text-slate-300">
-                Oder lade eine PDF-Datei hoch:
+                Oder lade eine PDF- oder Bilddatei hoch:
               </label>
               <div className="mt-2">
                 <label className="inline-flex items-center px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-200 cursor-pointer hover:border-sky-500">
-                  Datei auswählen (PDF)
+                  Datei auswählen (PDF/Bild)
                   <input
                     type="file"
-                    accept=".pdf"
+                    accept=".pdf,image/*"
                     className="hidden"
                     onChange={handleFileChange}
                   />
