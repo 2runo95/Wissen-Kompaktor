@@ -15,7 +15,7 @@ interface AdBannerProps {
  * Setz hier deine echte AdSense Publisher-ID ein – die gleiche,
  * die du im <script ... client="ca-pub-XXXX"> in index.html verwendest.
  */
-const ADSENSE_CLIENT = "ca-pub-XXXXXXXXXXXX"; // TODO: ersetzen
+const ADSENSE_CLIENT = "ca-pub-1048222071695232"; // TODO: ersetzen
 
 const AdBanner: React.FC<AdBannerProps> = ({
   cookieConsent,
