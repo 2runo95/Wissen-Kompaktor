@@ -1,33 +1,36 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Wissen-Kompaktor</title>
 
-  <!-- Google tag (gtag.js) -->
- <script async src="https://www.googletagmanager.com/gtag/js?id=G-D09ZPVPDR3"></script>
- <script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-D09ZPVPDR3"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-D09ZPVPDR3');
+  </script>
 
-  gtag('config', 'G-D09ZPVPDR3');
- </script>
   <!-- Google AdSense -->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXX"
-          crossorigin="anonymous"></script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1048222071695232"
+    crossorigin="anonymous"></script>
 
+  <!-- Favicon / Icons -->
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/wk-icon-32.png" />
+  <link rel="icon" type="image/png" sizes="64x64" href="/wk-icon-64.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/wk-icon-180.png" />
+
+  <!-- Main React App -->
   <script type="module" src="/src/main.tsx"></script>
- <link rel="icon" type="image/x-icon" href="/favicon.ico" />
- <link rel="icon" type="image/png" sizes="32x32" href="/wk-icon-32.png" />
- <link rel="icon" type="image/png" sizes="64x64" href="/wk-icon-64.png" />
- <link rel="apple-touch-icon" sizes="180x180" href="/wk-icon-180.png" />
- 
 </head>
 
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<body>
+  <div id="root"></div>
+</body>
+
 </html>
