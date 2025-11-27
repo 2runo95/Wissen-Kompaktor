@@ -1,5 +1,5 @@
 from openai import OpenAI
-from ..prompts import build_flashcard_prompt
+from prompts import build_flashcard_prompt
 
 
 def process_flashcards(client: OpenAI, text: str) -> dict:

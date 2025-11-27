@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from "react";
-import CookieBanner from "./CookieBanner";
-import type { CookieConsentValue } from "./CookieBanner";
+// frontend/src/App.tsx
+import React, { useEffect, useState } from "react";
+import CookieBanner, { type CookieConsentValue } from "./CookieBanner";
 import AdBanner from "./AdBanner";
-
 
 type Mode = "summary" | "bullets" | "flashcards" | "kids" | "short";
 
@@ -17,6 +16,14 @@ interface ApiResult {
   cards?: Flashcard[];
 }
 
+interface HistoryEntry {
+  id: number;
+  timestamp: string;
+  mode: Mode;
+  inputPreview: string;
+  result: ApiResult;
+}
+
 const API_BASE = "https://wissen-backend-u8d0.onrender.com";
 
 const MODES: { id: Mode; label: string }[] = [
@@ -24,7 +31,7 @@ const MODES: { id: Mode; label: string }[] = [
   { id: "bullets", label: "Stichpunkte" },
   { id: "flashcards", label: "Lernkarten" },
   { id: "kids", label: "Für Kinder erklärt" },
-  { id: "short", label: "Kurzfassung (5 Sätze)" },
+  { id: "short", label: "In 5 Sätzen" },
 ];
 
 const App: React.FC = () => {
@@ -33,31 +40,66 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ApiResult | null>(null);
   const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState<"current" | "history">("current");
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   // COOKIE CONSENT
-  const [cookieConsent, setCookieConsent] = useState<CookieConsentValue>(() => {
-    if (typeof window === "undefined") return null;
-    const stored = window.localStorage.getItem("cookieConsent");
-    if (stored === "accepted" || stored === "necessary") return stored;
-    return null;
-  });
+  const [cookieConsent, setCookieConsent] =
+    useState<CookieConsentValue>(null);
 
+  // Cookie-Status aus localStorage laden
   useEffect(() => {
-    if (cookieConsent === null) return;
-    window.localStorage.setItem("cookieConsent", cookieConsent);
-  }, [cookieConsent]);
+    const stored = localStorage.getItem("cookieConsent");
+    if (stored === "accepted" || stored === "necessary") {
+      setCookieConsent(stored);
+    } else {
+      setCookieConsent(null);
+    }
+  }, []);
+
+  // History aus localStorage laden
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("wk_history");
+      if (raw) {
+        const parsed = JSON.parse(raw) as HistoryEntry[];
+        setHistory(parsed);
+      }
+    } catch {
+      // egal, dann eben leere History
+    }
+  }, []);
+
+  // History speichern wenn sie sich ändert
+  useEffect(() => {
+    localStorage.setItem("wk_history", JSON.stringify(history));
+  }, [history]);
 
   const wordCount =
     text.trim().length === 0
       ? 0
       : text.trim().split(/\s+/).filter(Boolean).length;
 
+  const addToHistory = (newResult: ApiResult, sourceText: string) => {
+    const entry: HistoryEntry = {
+      id: Date.now(),
+      timestamp: new Date().toLocaleString(),
+      mode,
+      inputPreview: sourceText.slice(0, 200),
+      result: newResult,
+    };
+    setHistory((prev) => [entry, ...prev].slice(0, 20)); // max 20 Einträge
+  };
+
+  // ─────────────────────────────────────────────
+  // Text-basierte Anfrage
+  // ─────────────────────────────────────────────
   const handleSubmit = async () => {
     setError("");
     setResult(null);
 
     if (!text.trim()) {
-      setError("Bitte gib einen Text ein.");
+      setError("Bitte gib einen Text ein oder lade eine Datei hoch.");
       return;
     }
 
@@ -79,7 +121,9 @@ const App: React.FC = () => {
           "Es ist ein Fehler bei der Verarbeitung aufgetreten.";
         setError(msg);
       } else {
-        setResult(data.result as ApiResult);
+        const resultData = data.result as ApiResult;
+        setResult(resultData);
+        addToHistory(resultData, text);
       }
     } catch (e) {
       console.error(e);
@@ -89,31 +133,131 @@ const App: React.FC = () => {
     }
   };
 
-  const handleCopy = () => {
-    if (!result) return;
+  // ─────────────────────────────────────────────
+  // Datei-Upload (z.B. PDF)
+  // ─────────────────────────────────────────────
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-    let textToCopy = "";
+    setError("");
+    setResult(null);
+    setLoading(true);
 
-    if ((mode === "summary" || mode === "kids" || mode === "short") && result.summary) {
-      textToCopy = result.summary;
-    } else if (mode === "bullets" && result.bullets) {
-      textToCopy = result.bullets.join("\n");
-    } else if (mode === "flashcards" && result.cards) {
-      textToCopy = result.cards
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("mode", mode);
+
+      const res = await fetch(`${API_BASE}/api/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.success === false) {
+        const msg =
+          data?.error?.message ||
+          "Es ist ein Fehler bei der Verarbeitung der Datei aufgetreten.";
+        setError(msg);
+      } else {
+        const resultData = data.result as ApiResult;
+        setResult(resultData);
+
+        // Falls das Backend den extrahierten Text zurückgibt, in das Textfeld setzen
+        if (data.text && typeof data.text === "string") {
+          setText(data.text);
+          addToHistory(resultData, data.text);
+        } else {
+          addToHistory(resultData, `Datei: ${file.name}`);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      setError("Server nicht erreichbar. Läuft das Backend?");
+    } finally {
+      setLoading(false);
+      // damit man die gleiche Datei noch einmal auswählen kann, Input resetten
+      event.target.value = "";
+    }
+  };
+
+  // ─────────────────────────────────────────────
+  // Export-Funktionen
+  // ─────────────────────────────────────────────
+  const buildResultText = (): string => {
+    if (!result) return "";
+    if (mode === "summary" || mode === "kids" || mode === "short") {
+      return result.summary ?? "";
+    }
+    if (mode === "bullets") {
+      return (result.bullets ?? []).join("\n");
+    }
+    if (mode === "flashcards") {
+      return (result.cards ?? [])
         .map(
           (c, i) =>
             `Karte ${i + 1}\nFrage: ${c.question}\nAntwort: ${c.answer}`
         )
         .join("\n\n");
     }
-
-    if (textToCopy) {
-      navigator.clipboard.writeText(textToCopy);
-    }
+    return "";
   };
 
-  const renderResult = () => {
-    if (!result) {
+  const handleCopy = () => {
+    const textToCopy = buildResultText();
+    if (!textToCopy) return;
+    navigator.clipboard.writeText(textToCopy);
+  };
+
+  const downloadFile = (
+    content: string,
+    filename: string,
+    mime: string
+  ) => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadTxt = () => {
+    const content = buildResultText();
+    if (!content) return;
+    downloadFile(
+      content,
+      `wissen-kompaktor-${mode}.txt`,
+      "text/plain;charset=utf-8"
+    );
+  };
+
+  const handleDownloadPdf = () => {
+    const content = buildResultText();
+    if (!content) return;
+    // Hier nur einfacher Text-PDF-Download (kein echtes Layout)
+    downloadFile(
+      content,
+      `wissen-kompaktor-${mode}.pdf`,
+      "application/pdf"
+    );
+  };
+
+  const handleDownloadImage = () => {
+    // Platzhalter – könnte später mit html2canvas o.Ä. umgesetzt werden
+    alert("Bild-Export wird später hinzugefügt 🙂");
+  };
+
+  // ─────────────────────────────────────────────
+  // Rendering: Ergebnis
+  // ─────────────────────────────────────────────
+  const renderResult = (r: ApiResult | null, m: Mode) => {
+    if (!r) {
       return (
         <div className="text-slate-500 text-xs">
           Hier erscheint das Ergebnis.
@@ -121,16 +265,16 @@ const App: React.FC = () => {
       );
     }
 
-    if (mode === "summary" || mode === "kids" || mode === "short") {
+    if (m === "summary" || m === "kids" || m === "short") {
       return (
         <div className="whitespace-pre-line">
-          {result.summary || "Keine Erklärung gefunden."}
+          {r.summary || "Keine Zusammenfassung gefunden."}
         </div>
       );
     }
 
-    if (mode === "bullets") {
-      const bullets = result.bullets ?? [];
+    if (m === "bullets") {
+      const bullets = r.bullets ?? [];
       return (
         <ul className="list-disc list-inside space-y-1">
           {bullets.map((b, i) => (
@@ -140,8 +284,8 @@ const App: React.FC = () => {
       );
     }
 
-    if (mode === "flashcards") {
-      const cards = result.cards ?? [];
+    if (m === "flashcards") {
+      const cards = r.cards ?? [];
       return (
         <div className="space-y-3">
           {cards.map((card, i) => (
@@ -152,7 +296,9 @@ const App: React.FC = () => {
               <div className="text-xs uppercase text-slate-400">
                 Karte {i + 1}
               </div>
-              <div className="font-semibold mt-1">❓ {card.question}</div>
+              <div className="font-semibold mt-1">
+                ❓ {card.question}
+              </div>
               <div className="mt-1 text-sm text-slate-200">
                 ✅ {card.answer}
               </div>
@@ -162,106 +308,218 @@ const App: React.FC = () => {
       );
     }
 
-    return <div>Dieser Modus ist noch nicht implementiert.</div>;
+    return null;
   };
 
+  const renderHistory = () => {
+    if (history.length === 0) {
+      return (
+        <div className="text-xs text-slate-500">
+          Noch keine bisherigen Kompaktierungen.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3">
+        {history.map((entry) => (
+          <button
+            key={entry.id}
+            type="button"
+            onClick={() => {
+              setMode(entry.mode);
+              setResult(entry.result);
+              setActiveTab("current");
+            }}
+            className="w-full text-left rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2 hover:border-sky-500 transition"
+          >
+            <div className="flex justify-between text-xs text-slate-400 mb-1">
+              <span>{entry.timestamp}</span>
+              <span>
+                {MODES.find((m) => m.id === entry.mode)?.label ??
+                  entry.mode}
+              </span>
+            </div>
+            <div className="text-xs text-slate-200 line-clamp-2">
+              {entry.inputPreview}
+            </div>
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  // ─────────────────────────────────────────────
+  // JSX
+  // ─────────────────────────────────────────────
   return (
-    <>
-      {/* Cookie-Banner liegt über allem */}
-      <CookieBanner value={cookieConsent} onChange={setCookieConsent} />
+    <div className="min-h-screen flex items-center justify-center px-4 py-6">
+      <div className="w-full max-w-6xl bg-slate-900/70 border border-slate-800 rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+        <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+          Wissen-Kompaktor
+        </h1>
 
-      <div className="min-h-screen flex items-center justify-center px-4 py-6">
-        <div className="w-full max-w-6xl bg-slate-900/70 border border-slate-800 rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
-          <h1 className="text-2xl sm:text-3xl font-bold mb-2">
-            Wissen-Kompaktor
-          </h1>
+        {/* Werbung – nur wenn Cookies entsprechend erlaubt */}
+        <AdBanner cookieConsent={cookieConsent} />
 
-          {/* Werbung – nur wenn Nutzer zugestimmt hat */}
-          <AdBanner cookieConsent={cookieConsent} />
+        <p className="text-slate-400 mb-6 text-sm sm:text-base">
+          Fasse Texte zusammen, mach Bulletpoints oder Lernkarten – direkt
+          im Browser.
+        </p>
 
-          <p className="text-slate-400 mb-6 text-sm sm:text-base">
-            Fasse Texte zusammen, mach Bulletpoints oder Lernkarten – direkt im
-            Browser.
-          </p>
+        {/* Modus-Auswahl */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => setMode(m.id)}
+              className={`px-3 py-1.5 rounded-full text-sm border transition ${
+                mode === m.id
+                  ? "bg-sky-500 text-white border-sky-500"
+                  : "bg-slate-900 text-slate-200 border-slate-700 hover:border-slate-500"
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
 
-          {/* Tabs / Modus-Auswahl */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            {MODES.map((m) => (
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Eingabe-Spalte */}
+          <div className="flex flex-col">
+            <label className="text-sm font-medium mb-2 text-slate-200">
+              Eingabetext
+            </label>
+            <textarea
+              className="flex-1 min-h-[220px] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 resize-vertical"
+              placeholder="Füge hier deinen Text ein..."
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+            />
+            <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+              <span>{wordCount} Wörter</span>
               <button
-                key={m.id}
-                onClick={() => setMode(m.id)}
-                className={`px-3 py-1.5 rounded-full text-sm border transition ${
-                  mode === m.id
-                    ? "bg-sky-500 text-white border-sky-500"
-                    : "bg-slate-900 text-slate-200 border-slate-700 hover:border-slate-500"
-                }`}
+                type="button"
+                onClick={() => setText("")}
+                className="hover:text-sky-400"
               >
-                {m.label}
+                Leeren
               </button>
-            ))}
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Eingabe */}
-            <div className="flex flex-col">
-              <label className="text-sm font-medium mb-2 text-slate-200">
-                Eingabetext
-              </label>
-              <textarea
-                className="flex-1 min-h-[220px] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 resize-vertical"
-                placeholder="Füge hier deinen Text ein..."
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-              />
-              <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-                <span>{wordCount} Wörter</span>
-                <button
-                  type="button"
-                  onClick={() => setText("")}
-                  className="hover:text-sky-400"
-                >
-                  Leeren
-                </button>
-              </div>
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="mt-4 inline-flex items-center justify-center rounded-xl bg-sky-500 hover:bg-sky-600 disabled:bg-sky-900 px-4 py-2 text-sm font-semibold transition"
-              >
-                {loading ? "Wird verarbeitet..." : "Kompaktieren"}
-              </button>
-              {error && (
-                <div className="mt-3 text-xs text-red-400 bg-red-900/30 border border-red-800 px-3 py-2 rounded-lg">
-                  {error}
-                </div>
-              )}
             </div>
 
-            {/* Ausgabe */}
-            <div className="flex flex-col">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-sm font-medium text-slate-200">
-                  Ergebnis ({MODES.find((m) => m.id === mode)?.label})
-                </h2>
+            {/* Datei-Upload */}
+            <div className="mt-4">
+              <label className="text-xs font-medium text-slate-300">
+                Oder lade eine PDF-Datei hoch:
+              </label>
+              <div className="mt-2">
+                <label className="inline-flex items-center px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-200 cursor-pointer hover:border-sky-500">
+                  Datei auswählen (PDF)
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                </label>
+              </div>
+            </div>
+
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="mt-4 inline-flex items-center justify-center rounded-xl bg-sky-500 hover:bg-sky-600 disabled:bg-sky-900 px-4 py-2 text-sm font-semibold transition"
+            >
+              {loading ? "Wird verarbeitet..." : "Kompaktieren"}
+            </button>
+
+            {error && (
+              <div className="mt-3 text-xs text-red-400 bg-red-900/30 border border-red-800 px-3 py-2 rounded-lg">
+                {error}
+              </div>
+            )}
+          </div>
+
+          {/* Ausgabe-Spalte */}
+          <div className="flex flex-col">
+            {/* Tabs Aktuell / History */}
+            <div className="flex items-center gap-3 mb-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab("current")}
+                className={`text-xs px-2 py-1 rounded-full border ${
+                  activeTab === "current"
+                    ? "bg-sky-500 border-sky-500 text-white"
+                    : "border-slate-700 text-slate-300"
+                }`}
+              >
+                Aktuell
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("history")}
+                className={`text-xs px-2 py-1 rounded-full border ${
+                  activeTab === "history"
+                    ? "bg-sky-500 border-sky-500 text-white"
+                    : "border-slate-700 text-slate-300"
+                }`}
+              >
+                Zuletzt gemacht
+              </button>
+
+              <div className="ml-auto flex items-center gap-2 text-xs text-slate-400">
                 <button
                   type="button"
                   onClick={handleCopy}
-                  className="text-xs text-slate-400 hover:text-sky-400"
+                  className="hover:text-sky-400"
                 >
                   Kopieren
                 </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadTxt}
+                  className="hover:text-sky-400"
+                >
+                  .txt
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadPdf}
+                  className="hover:text-sky-400"
+                >
+                  .pdf
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadImage}
+                  className="hover:text-sky-400"
+                >
+                  Bild
+                </button>
               </div>
-              <div className="flex-1 min-h-[220px] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm overflow-auto">
-                {loading && !result && (
-                  <div className="text-slate-500 text-xs">Bitte warten…</div>
-                )}
-                {!loading && renderResult()}
-              </div>
+            </div>
+
+            <div className="flex-1 min-height-[220px] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm overflow-auto">
+              {loading && !result && activeTab === "current" && (
+                <div className="text-slate-500 text-xs">
+                  Bitte warten…
+                </div>
+              )}
+              {!loading &&
+                (activeTab === "current"
+                  ? renderResult(result, mode)
+                  : renderHistory())}
             </div>
           </div>
         </div>
+
+        {/* Cookie-Banner */}
+        <CookieBanner
+          value={cookieConsent}
+          onChange={setCookieConsent}
+        />
       </div>
-    </>
+    </div>
   );
 };
 

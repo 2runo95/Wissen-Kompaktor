@@ -1,5 +1,5 @@
 from openai import OpenAI
-from ..prompts import build_short_summary_prompt
+from prompts import build_short_summary_prompt
 
 
 def process_short_summary(client: OpenAI, text: str) -> dict:

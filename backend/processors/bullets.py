@@ -1,5 +1,5 @@
 from openai import OpenAI
-from ..prompts import build_bullet_prompt
+from prompts import build_bullet_prompt
 
 
 def process_bullets(client: OpenAI, text: str) -> dict:

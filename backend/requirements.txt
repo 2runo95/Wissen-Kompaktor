@@ -4,3 +4,4 @@ python-dotenv
 openai
 pydantic
 starlette
+pypdf2

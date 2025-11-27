@@ -1,5 +1,5 @@
 from openai import OpenAI
-from ..prompts import build_kids_prompt
+from prompts import build_kids_prompt
 
 
 def process_simple(client: OpenAI, text: str) -> dict:
