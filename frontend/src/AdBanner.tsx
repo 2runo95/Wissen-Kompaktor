@@ -1,55 +1,54 @@
-import React, { useEffect, useRef } from "react";
-import type { CookieConsentValue } from "./CookieBanner";
+// frontend/src/AdBanner.tsx
+import React, { useEffect } from "react";
+import type { CSSProperties } from "react";
+import { type CookieConsentValue } from "./CookieBanner";
 
 interface AdBannerProps {
   cookieConsent: CookieConsentValue;
+  slot: string;                // AdSense ad slot ID
+  className?: string;
+  style?: CSSProperties;
 }
 
 /**
- * Platzhalter-Komponente für Werbung (z.B. Google AdSense).
- * Wird NUR gerendert, wenn cookieConsent === "accepted".
+ * Wichtig:
+ * Setz hier deine echte AdSense Publisher-ID ein – die gleiche,
+ * die du im <script ... client="ca-pub-XXXX"> in index.html verwendest.
  */
-const AdBanner: React.FC<AdBannerProps> = ({ cookieConsent }) => {
-  // <ins> entspricht in TS dem Typ HTMLModElement
-  const adRef = useRef<HTMLModElement | null>(null);
+const ADSENSE_CLIENT = "ca-pub-XXXXXXXXXXXX"; // TODO: ersetzen
 
+const AdBanner: React.FC<AdBannerProps> = ({
+  cookieConsent,
+  slot,
+  className,
+  style,
+}) => {
   useEffect(() => {
-    if (cookieConsent !== "accepted") return;
-
-    // Beispiel für AdSense – hier müsstest du später deine echte ID einsetzen.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const w = window as any;
-    w.adsbygoogle = w.adsbygoogle || [];
-
-    try {
-      w.adsbygoogle.push({});
-    } catch (e) {
-      console.error("AdSense-Initialisierung fehlgeschlagen:", e);
+    if (cookieConsent === "accepted") {
+      try {
+        // @ts-ignore
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (e) {
+        console.warn("AdSense error:", e);
+      }
     }
   }, [cookieConsent]);
 
   if (cookieConsent !== "accepted") {
-    // Keine Werbung ohne explizite Zustimmung
+    // Werbung nur anzeigen, wenn Cookies akzeptiert wurden
     return null;
   }
 
   return (
-    <div className="mb-4">
-      <div className="text-xs text-slate-500 mb-1">
-        Werbung – hilft, die API-Kosten zu decken 💙
-      </div>
-      <ins
-        ref={adRef}
-        className="adsbygoogle block w-full"
-        style={{ display: "block" }}
-        data-ad-client="ca-pub-XXXXXXXXXXXXXXXX" // TODO: Deine AdSense-ID
-        data-ad-slot="1234567890"                // TODO: Dein Slot
-        data-ad-format="auto"
-        data-full-width-responsive="true"
-      ></ins>
-    </div>
+    <ins
+      className={`adsbygoogle ${className ?? ""}`}
+      style={style ?? { display: "block", textAlign: "center" }}
+      data-ad-client={ADSENSE_CLIENT}
+      data-ad-slot={slot}
+      data-ad-format="auto"
+      data-full-width-responsive="true"
+    />
   );
 };
 
 export default AdBanner;
-

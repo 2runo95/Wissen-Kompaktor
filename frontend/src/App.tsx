@@ -353,171 +353,208 @@ const App: React.FC = () => {
   // JSX
   // ─────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-6">
-      <div className="w-full max-w-6xl bg-slate-900/70 border border-slate-800 rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-2">
-          Wissen-Kompaktor
-        </h1>
-
-        {/* Werbung – nur wenn Cookies entsprechend erlaubt */}
-        <AdBanner cookieConsent={cookieConsent} />
-
-        <p className="text-slate-400 mb-6 text-sm sm:text-base">
-          Komprimiere Inhalte intelligent – Zusammenfassungen, Stichpunkte,
-          Lernkarten & mehr – direkt im Browser.
-        </p>
-
-        {/* Modus-Auswahl */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          {MODES.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => setMode(m.id)}
-              className={`px-3 py-1.5 rounded-full text-sm border transition ${
-                mode === m.id
-                  ? "bg-sky-500 text-white border-sky-500"
-                  : "bg-slate-900 text-slate-200 border-slate-700 hover:border-slate-500"
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* Eingabe-Spalte */}
-          <div className="flex flex-col">
-            <label className="text-sm font-medium mb-2 text-slate-200">
-              Eingabetext
-            </label>
-            <textarea
-              className="flex-1 min-h-[220px] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 resize-vertical"
-              placeholder="Füge hier deinen Text ein..."
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            />
-            <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-              <span>{wordCount} Wörter</span>
-              <button
-                type="button"
-                onClick={() => setText("")}
-                className="hover:text-sky-400"
-              >
-                Leeren
-              </button>
-            </div>
-
-            {/* Datei-Upload */}
-            <div className="mt-4">
-              <label className="text-xs font-medium text-slate-300">
-                Oder lade eine PDF- oder Bilddatei hoch:
-              </label>
-              <div className="mt-2">
-                <label className="inline-flex items-center px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-200 cursor-pointer hover:border-sky-500">
-                  Datei auswählen (PDF/Bild)
-                  <input
-                    type="file"
-                    accept=".pdf,image/*"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                </label>
-              </div>
-            </div>
-
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="mt-4 inline-flex items-center justify-center rounded-xl bg-sky-500 hover:bg-sky-600 disabled:bg-sky-900 px-4 py-2 text-sm font-semibold transition"
-            >
-              {loading ? "Wird verarbeitet..." : "Kompaktieren"}
-            </button>
-
-            {error && (
-              <div className="mt-3 text-xs text-red-400 bg-red-900/30 border border-red-800 px-3 py-2 rounded-lg">
-                {error}
-              </div>
-            )}
-          </div>
-
-          {/* Ausgabe-Spalte */}
-          <div className="flex flex-col">
-            {/* Tabs Aktuell / History */}
-            <div className="flex items-center gap-3 mb-2">
-              <button
-                type="button"
-                onClick={() => setActiveTab("current")}
-                className={`text-xs px-2 py-1 rounded-full border ${
-                  activeTab === "current"
-                    ? "bg-sky-500 border-sky-500 text-white"
-                    : "border-slate-700 text-slate-300"
-                }`}
-              >
-                Aktuell
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("history")}
-                className={`text-xs px-2 py-1 rounded-full border ${
-                  activeTab === "history"
-                    ? "bg-sky-500 border-sky-500 text-white"
-                    : "border-slate-700 text-slate-300"
-                }`}
-              >
-                Zuletzt gemacht
-              </button>
-
-              <div className="ml-auto flex items-center gap-2 text-xs text-slate-400">
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  className="hover:text-sky-400"
-                >
-                  Kopieren
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDownloadTxt}
-                  className="hover:text-sky-400"
-                >
-                  .txt
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDownloadPdf}
-                  className="hover:text-sky-400"
-                >
-                  .pdf
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDownloadImage}
-                  className="hover:text-sky-400"
-                >
-                  Bild
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 min-height-[220px] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm overflow-auto">
-              {loading && !result && activeTab === "current" && (
-                <div className="text-slate-500 text-xs">
-                  Bitte warten…
-                </div>
-              )}
-              {!loading &&
-                (activeTab === "current"
-                  ? renderResult(result, mode)
-                  : renderHistory())}
-            </div>
-          </div>
-        </div>
-
-        {/* Cookie-Banner */}
-        <CookieBanner
-          value={cookieConsent}
-          onChange={setCookieConsent}
+    <div className="min-h-screen bg-slate-950 px-4 py-6">
+      {/* TOP-BANNER (rotes Feld oben im Screenshot) */}
+      <div className="max-w-6xl mx-auto mb-4">
+        <AdBanner
+          cookieConsent={cookieConsent}
+          slot="0000000001" // TODO: echten Slot von AdSense eintragen
+          style={{ display: "block", width: "100%", minHeight: 90 }}
         />
+      </div>
+
+      <div className="max-w-6xl mx-auto flex gap-4">
+        {/* LINKES AD (rotes Feld links) – nur auf XL-Screens sichtbar */}
+        <div className="hidden xl:block w-56">
+          <AdBanner
+            cookieConsent={cookieConsent}
+            slot="0000000002"
+            style={{
+              display: "block",
+              width: "100%",
+              minHeight: 600,
+            }}
+          />
+        </div>
+
+        {/* Haupt-Card */}
+        <div className="flex-1">
+          <div className="w-full bg-slate-900/70 border border-slate-800 rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+              Wissen-Kompaktor
+            </h1>
+
+            <p className="text-slate-400 mb-6 text-sm sm:text-base">
+              Komprimiere Inhalte intelligent – Zusammenfassungen,
+              Stichpunkte, Lernkarten & mehr – direkt im Browser.
+            </p>
+
+            {/* Modus-Auswahl */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              {MODES.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => setMode(m.id)}
+                  className={`px-3 py-1.5 rounded-full text-sm border transition ${
+                    mode === m.id
+                      ? "bg-sky-500 text-white border-sky-500"
+                      : "bg-slate-900 text-slate-200 border-slate-700 hover:border-slate-500"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {/* Eingabe-Spalte */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium mb-2 text-slate-200">
+                  Eingabetext
+                </label>
+                <textarea
+                  className="flex-1 min-h-[220px] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 resize-vertical"
+                  placeholder="Füge hier deinen Text ein..."
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                />
+                <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                  <span>{wordCount} Wörter</span>
+                  <button
+                    type="button"
+                    onClick={() => setText("")}
+                    className="hover:text-sky-400"
+                  >
+                    Leeren
+                  </button>
+                </div>
+
+                {/* Datei-Upload */}
+                <div className="mt-4">
+                  <label className="text-xs font-medium text-slate-300">
+                    Oder lade eine PDF- oder Bilddatei hoch:
+                  </label>
+                  <div className="mt-2">
+                    <label className="inline-flex items-center px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-200 cursor-pointer hover:border-sky-500">
+                      Datei auswählen (PDF/Bild)
+                      <input
+                        type="file"
+                        accept=".pdf,image/*"
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  className="mt-4 inline-flex items-center justify-center rounded-xl bg-sky-500 hover:bg-sky-600 disabled:bg-sky-900 px-4 py-2 text-sm font-semibold transition"
+                >
+                  {loading ? "Wird verarbeitet..." : "Kompaktieren"}
+                </button>
+
+                {error && (
+                  <div className="mt-3 text-xs text-red-400 bg-red-900/30 border border-red-800 px-3 py-2 rounded-lg">
+                    {error}
+                  </div>
+                )}
+              </div>
+
+              {/* Ausgabe-Spalte */}
+              <div className="flex flex-col">
+                {/* Tabs Aktuell / History */}
+                <div className="flex items-center gap-3 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("current")}
+                    className={`text-xs px-2 py-1 rounded-full border ${
+                      activeTab === "current"
+                        ? "bg-sky-500 border-sky-500 text-white"
+                        : "border-slate-700 text-slate-300"
+                    }`}
+                  >
+                    Aktuell
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("history")}
+                    className={`text-xs px-2 py-1 rounded-full border ${
+                      activeTab === "history"
+                        ? "bg-sky-500 border-sky-500 text-white"
+                        : "border-slate-700 text-slate-300"
+                    }`}
+                  >
+                    Zuletzt gemacht
+                  </button>
+
+                  <div className="ml-auto flex items-center gap-2 text-xs text-slate-400">
+                    <button
+                      type="button"
+                      onClick={handleCopy}
+                      className="hover:text-sky-400"
+                    >
+                      Kopieren
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadTxt}
+                      className="hover:text-sky-400"
+                    >
+                      .txt
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadPdf}
+                      className="hover:text-sky-400"
+                    >
+                      .pdf
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadImage}
+                      className="hover:text-sky-400"
+                    >
+                      Bild
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex-1 min-height-[220px] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm overflow-auto">
+                  {loading && !result && activeTab === "current" && (
+                    <div className="text-slate-500 text-xs">
+                      Bitte warten…
+                    </div>
+                  )}
+                  {!loading &&
+                    (activeTab === "current"
+                      ? renderResult(result, mode)
+                      : renderHistory())}
+                </div>
+              </div>
+            </div>
+
+            {/* Cookie-Banner */}
+            <CookieBanner
+              value={cookieConsent}
+              onChange={setCookieConsent}
+            />
+          </div>
+        </div>
+
+        {/* RECHTES AD (rotes Feld rechts) – nur auf XL-Screens sichtbar */}
+        <div className="hidden xl:block w-56">
+          <AdBanner
+            cookieConsent={cookieConsent}
+            slot="0000000003"
+            style={{
+              display: "block",
+              width: "100%",
+              minHeight: 600,
+            }}
+          />
+        </div>
       </div>
     </div>
   );
