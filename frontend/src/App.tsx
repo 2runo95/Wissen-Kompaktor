@@ -151,7 +151,7 @@ const App: React.FC = () => {
       formData.append("file", file);
       formData.append("mode", mode);
 
-      // FIX: richtiger Backend-Endpoint für Datei-Upload
+      // richtiger Backend-Endpoint für Datei-Upload
       const res = await fetch(`${API_BASE}/api/compact-file`, {
         method: "POST",
         body: formData,
@@ -181,8 +181,7 @@ const App: React.FC = () => {
       setError("Server nicht erreichbar. Läuft das Backend?");
     } finally {
       setLoading(false);
-      // damit man die gleiche Datei noch einmal auswählen kann, Input resetten
-      event.target.value = "";
+      event.target.value = ""; // gleiche Datei erneut auswählbar
     }
   };
 
@@ -241,7 +240,6 @@ const App: React.FC = () => {
   const handleDownloadPdf = () => {
     const content = buildResultText();
     if (!content) return;
-    // Hier nur einfacher Text-PDF-Download (kein echtes Layout)
     downloadFile(
       content,
       `wissen-kompaktor-${mode}.pdf`,
@@ -250,7 +248,6 @@ const App: React.FC = () => {
   };
 
   const handleDownloadImage = () => {
-    // Platzhalter – könnte später mit html2canvas o.Ä. umgesetzt werden
     alert("Bild-Export wird später hinzugefügt 🙂");
   };
 
@@ -355,26 +352,22 @@ const App: React.FC = () => {
   // ─────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-950 px-4 py-6">
-      {/* TOP-BANNER (rotes Feld oben im Screenshot) */}
+      {/* TOP-BANNER */}
       <div className="max-w-6xl mx-auto mb-4">
         <AdBanner
           cookieConsent={cookieConsent}
-          slot="1234567890" // TODO: echten Slot von AdSense eintragen
+          slot="4124950988" // Block Oben
           style={{ display: "block", width: "100%", minHeight: 90 }}
         />
       </div>
 
       <div className="max-w-6xl mx-auto flex gap-4">
-        {/* LINKES AD (rotes Feld links) – nur auf XL-Screens sichtbar */}
+        {/* LINKES AD – nur auf XL-Screens sichtbar */}
         <div className="hidden xl:block w-56">
           <AdBanner
             cookieConsent={cookieConsent}
-            slot="2345678901"
-            style={{
-              display: "block",
-              width: "100%",
-              minHeight: 600,
-            }}
+            slot="5661393931" // Block Links
+            style={{ display: "block", width: "100%", minHeight: 600 }}
           />
         </div>
 
@@ -522,7 +515,7 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex-1 min-height-[220px] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm overflow-auto">
+                <div className="flex-1 min-h-[220px] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm overflow-auto">
                   {loading && !result && activeTab === "current" && (
                     <div className="text-slate-500 text-xs">
                       Bitte warten…
@@ -544,16 +537,12 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* RECHTES AD (rotes Feld rechts) – nur auf XL-Screens sichtbar */}
+        {/* RECHTES AD – nur auf XL-Screens sichtbar */}
         <div className="hidden xl:block w-56">
           <AdBanner
             cookieConsent={cookieConsent}
-            slot="3456789012"
-            style={{
-              display: "block",
-              width: "100%",
-              minHeight: 600,
-            }}
+            slot="3822640606" // Block Rechts
+            style={{ display: "block", width: "100%", minHeight: 600 }}
           />
         </div>
       </div>

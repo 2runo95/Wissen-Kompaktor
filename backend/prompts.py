@@ -21,7 +21,7 @@ Regeln:
 - Schreibe auf Deutsch.
 - Jede Zeile ein klarer Punkt.
 - Keine langen Absätze.
-- Zwischen 5 und 12 Punkten.
+- Zwischen 5 und 100 Punkten.
 
 TEXT:
 {text}
@@ -40,7 +40,7 @@ Regeln:
 - Schreibe auf Deutsch.
 - Kurze, klare Fragen.
 - Antworten präzise, aber verständlich.
-- Mindestens 3 Karten, maximal 10.
+- Mindestens 3 Karten, maximal 100.
 
 TEXT:
 {text}
