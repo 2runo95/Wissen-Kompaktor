@@ -151,7 +151,8 @@ const App: React.FC = () => {
       formData.append("file", file);
       formData.append("mode", mode);
 
-      const res = await fetch(`${API_BASE}/api/upload`, {
+      // FIX: richtiger Backend-Endpoint für Datei-Upload
+      const res = await fetch(`${API_BASE}/api/compact-file`, {
         method: "POST",
         body: formData,
       });
