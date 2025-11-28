@@ -358,7 +358,7 @@ const App: React.FC = () => {
       <div className="max-w-6xl mx-auto mb-4">
         <AdBanner
           cookieConsent={cookieConsent}
-          slot="0000000001" // TODO: echten Slot von AdSense eintragen
+          slot="1234567890" // TODO: echten Slot von AdSense eintragen
           style={{ display: "block", width: "100%", minHeight: 90 }}
         />
       </div>
@@ -368,7 +368,7 @@ const App: React.FC = () => {
         <div className="hidden xl:block w-56">
           <AdBanner
             cookieConsent={cookieConsent}
-            slot="0000000002"
+            slot="2345678901"
             style={{
               display: "block",
               width: "100%",
@@ -547,7 +547,7 @@ const App: React.FC = () => {
         <div className="hidden xl:block w-56">
           <AdBanner
             cookieConsent={cookieConsent}
-            slot="0000000003"
+            slot="3456789012"
             style={{
               display: "block",
               width: "100%",
