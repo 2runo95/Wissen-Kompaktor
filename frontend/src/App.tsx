@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import jsPDF from "jspdf";
 import AdBanner from "./AdBanner";
-import CookieBanner from "./CookieBanner";
+import CookieBanner, { type CookieConsentValue } from "./CookieBanner";
 
 type Mode = "summary" | "bullets" | "flashcards" | "kids" | "short";
 
@@ -30,6 +30,7 @@ interface HistoryItem {
 
 const HISTORY_KEY = "wk_history";
 const HISTORY_MAX_ITEMS = 20;
+const CONSENT_KEY = "wk_cookie_consent";
 
 const API_BASE =
   window.location.hostname === "localhost"
@@ -78,6 +79,16 @@ function saveHistory(items: HistoryItem[]) {
   }
 }
 
+function loadConsent(): CookieConsentValue {
+  try {
+    const raw = localStorage.getItem(CONSENT_KEY);
+    if (raw === "accepted" || raw === "necessary") return raw;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 const App: React.FC = () => {
   const [text, setText] = useState("");
   const [mode, setMode] = useState<Mode>(defaultMode);
@@ -94,6 +105,9 @@ const App: React.FC = () => {
     null
   );
 
+  const [cookieConsent, setCookieConsent] =
+    useState<CookieConsentValue>(null);
+
   const [maxFlashcards, setMaxFlashcards] = useState<number>(10);
   const [detailLevel, setDetailLevel] = useState<DetailLevel>("normal");
 
@@ -101,6 +115,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     setHistory(loadHistory());
+    setCookieConsent(loadConsent());
   }, []);
 
   const charCount = text.length;
@@ -277,11 +292,17 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-50">
       <div className="mx-auto max-w-6xl px-4 py-6 md:py-10">
-        {/* Cookie-Banner: schreibt seine Entscheidung in localStorage */}
+        {/* Cookie-Banner – steuert cookieConsent */}
         <CookieBanner
-          onChange={(value: any) => {
+          value={cookieConsent}
+          onChange={(value) => {
+            setCookieConsent(value);
             try {
-              localStorage.setItem("wk_cookie_consent", String(value));
+              if (value) {
+                localStorage.setItem(CONSENT_KEY, value);
+              } else {
+                localStorage.removeItem(CONSENT_KEY);
+              }
             } catch {
               // ignore
             }
@@ -323,7 +344,7 @@ const App: React.FC = () => {
 
         {/* Ads Top */}
         <div className="mb-4">
-          <AdBanner slotId="4124950988" />
+          <AdBanner cookieConsent={cookieConsent} slotId="4124950988" />
         </div>
 
         <main className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
@@ -502,7 +523,7 @@ const App: React.FC = () => {
 
             {/* Ads Left (nur XL) */}
             <div className="hidden xl:block">
-              <AdBanner slotId="5661393931" />
+              <AdBanner cookieConsent={cookieConsent} slotId="5661393931" />
             </div>
           </section>
 
@@ -683,7 +704,7 @@ const App: React.FC = () => {
 
             {/* Ads Right (nur XL) */}
             <div className="hidden xl:block">
-              <AdBanner slotId="3822640606" />
+              <AdBanner cookieConsent={cookieConsent} slotId="3822640606" />
             </div>
           </section>
         </main>

@@ -1,6 +1,6 @@
-// frontend/src/AdBanner.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import type { CSSProperties } from "react";
+import type { CookieConsentValue } from "./CookieBanner";
 
 declare global {
   interface Window {
@@ -9,51 +9,36 @@ declare global {
 }
 
 interface AdBannerProps {
+  cookieConsent: CookieConsentValue;
   slotId: string; // AdSense ad slot ID
   className?: string;
   style?: CSSProperties;
 }
 
 /**
- * Deine echte Publisher-ID
+ * Deine echte Publisher-ID (stimmt bereits)
  */
 const ADSENSE_CLIENT = "ca-pub-1048222071695232";
 
-/**
- * Consent aus localStorage lesen.
- * WICHTIG: Key muss zum CookieBanner passen.
- * Wir verwenden hier "wk_cookie_consent".
- */
-function getStoredConsent(): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return localStorage.getItem("wk_cookie_consent");
-  } catch {
-    return null;
-  }
-}
-
-const AdBanner: React.FC<AdBannerProps> = ({ slotId, className, style }) => {
-  const [canShowAds, setCanShowAds] = useState(false);
-
+const AdBanner: React.FC<AdBannerProps> = ({
+  cookieConsent,
+  slotId,
+  className,
+  style,
+}) => {
   useEffect(() => {
-    const consent = getStoredConsent();
-
-    if (consent === "accepted") {
-      setCanShowAds(true);
+    if (cookieConsent === "accepted") {
       try {
         window.adsbygoogle = window.adsbygoogle || [];
         window.adsbygoogle.push({});
       } catch (e) {
         console.warn("AdSense error:", e);
       }
-    } else {
-      setCanShowAds(false);
     }
-  }, [slotId]);
+  }, [cookieConsent, slotId]);
 
-  if (!canShowAds) {
-    // Werbung nur anzeigen, wenn Consent "accepted"
+  // Werbung nur anzeigen, wenn Cookies akzeptiert wurden
+  if (cookieConsent !== "accepted") {
     return null;
   }
 
