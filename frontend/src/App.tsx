@@ -1,598 +1,695 @@
-// frontend/src/App.tsx
-import React, { useEffect, useState } from "react";
-import CookieBanner, { type CookieConsentValue } from "./CookieBanner";
+import React, { useEffect, useMemo, useState } from "react";
+import jsPDF from "jspdf";
 import AdBanner from "./AdBanner";
+import CookieBanner from "./CookieBanner";
 
 type Mode = "summary" | "bullets" | "flashcards" | "kids" | "short";
-type LanguageCode = "de" | "en" | "es" | "fr" | "tr" | "ar" | "ja" | "zh";
 
-interface Flashcard {
-  question: string;
-  answer: string;
+export type LanguageCode = "de" | "en" | "es" | "fr" | "tr" | "ar" | "ja" | "zh";
+
+type DetailLevel = "compact" | "normal" | "verbose";
+
+interface CompactOptions {
+  maxFlashcards?: number;
+  detailLevel?: DetailLevel;
 }
 
-interface ApiResult {
-  summary?: string;
-  bullets?: string[];
-  cards?: Flashcard[];
+interface CompactResponse {
+  result: string;
+  text?: string;
 }
 
-interface HistoryEntry {
-  id: number;
+interface HistoryItem {
+  id: string;
   timestamp: string;
   mode: Mode;
-  inputPreview: string;
-  result: ApiResult;
+  language: LanguageCode;
+  inputText: string;
+  resultText: string;
 }
 
-const API_BASE = "https://wissen-backend-u8d0.onrender.com";
+const HISTORY_KEY = "wk_history";
+const HISTORY_MAX_ITEMS = 20;
 
-const MODES: { id: Mode; label: string }[] = [
-  { id: "summary", label: "Zusammenfassung" },
-  { id: "bullets", label: "Stichpunkte" },
-  { id: "flashcards", label: "Lernkarten" },
-  { id: "kids", label: "Für Kinder erklärt" },
-  { id: "short", label: "In 5 Sätzen" },
-];
+const API_BASE =
+  window.location.hostname === "localhost"
+    ? "http://localhost:8000"
+    : "https://wissen-backend-u8d0.onrender.com";
 
-const OTHER_LANGUAGES: { code: LanguageCode; label: string }[] = [
-  { code: "en", label: "Englisch" },
-  { code: "es", label: "Spanisch" },
-  { code: "fr", label: "Französisch" },
-  { code: "tr", label: "Türkisch" },
-  { code: "ar", label: "Arabisch" },
-  { code: "ja", label: "Japanisch" },
-  { code: "zh", label: "Chinesisch" },
-];
+const modeLabels: Record<Mode, string> = {
+  summary: "Zusammenfassung",
+  bullets: "Stichpunkte",
+  flashcards: "Lernkarten",
+  kids: "Für Kinder erklärt",
+  short: "In 5 Sätzen",
+};
+
+const languageLabels: Record<LanguageCode, string> = {
+  de: "Deutsch",
+  en: "English",
+  es: "Español",
+  fr: "Français",
+  tr: "Türkçe",
+  ar: "العربية",
+  ja: "日本語",
+  zh: "中文",
+};
+
+const defaultLanguage: LanguageCode = "de";
+const defaultMode: Mode = "summary";
+
+function loadHistory(): HistoryItem[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed;
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(items: HistoryItem[]) {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(items));
+  } catch {
+    // ignore
+  }
+}
 
 const App: React.FC = () => {
   const [text, setText] = useState("");
-  const [mode, setMode] = useState<Mode>("summary");
-  const [language, setLanguage] = useState<LanguageCode>("de");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<ApiResult | null>(null);
-  const [error, setError] = useState("");
+  const [mode, setMode] = useState<Mode>(defaultMode);
+  const [language, setLanguage] = useState<LanguageCode>(defaultLanguage);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [currentResult, setCurrentResult] = useState<string>("");
+  const [currentInput, setCurrentInput] = useState<string>("");
+
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [activeTab, setActiveTab] = useState<"current" | "history">("current");
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(
+    null
+  );
 
-  // COOKIE CONSENT
-  const [cookieConsent, setCookieConsent] =
-    useState<CookieConsentValue>(null);
+  const [maxFlashcards, setMaxFlashcards] = useState<number>(10);
+  const [detailLevel, setDetailLevel] = useState<DetailLevel>("normal");
 
-  // Cookie-Status aus localStorage laden
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+
   useEffect(() => {
-    const stored = localStorage.getItem("cookieConsent");
-    if (stored === "accepted" || stored === "necessary") {
-      setCookieConsent(stored);
-    } else {
-      setCookieConsent(null);
-    }
+    setHistory(loadHistory());
   }, []);
 
-  // History aus localStorage laden
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("wk_history");
-      if (raw) {
-        const parsed = JSON.parse(raw) as HistoryEntry[];
-        setHistory(parsed);
-      }
-    } catch {
-      // egal, dann eben leere History
-    }
-  }, []);
+  const charCount = text.length;
+  const wordCount = useMemo(
+    () => (text.trim() ? text.trim().split(/\s+/).length : 0),
+    [text]
+  );
 
-  // History speichern wenn sie sich ändert
-  useEffect(() => {
-    localStorage.setItem("wk_history", JSON.stringify(history));
-  }, [history]);
+  const activeHistoryItem = useMemo(
+    () => history.find((h) => h.id === selectedHistoryId) || null,
+    [history, selectedHistoryId]
+  );
 
-  const wordCount =
-    text.trim().length === 0
-      ? 0
-      : text.trim().split(/\s+/).filter(Boolean).length;
+  const showResult = useMemo(() => {
+    if (activeTab === "current") return currentResult;
+    return activeHistoryItem?.resultText ?? "";
+  }, [activeTab, currentResult, activeHistoryItem]);
 
-  const addToHistory = (newResult: ApiResult, sourceText: string) => {
-    const entry: HistoryEntry = {
-      id: Date.now(),
-      timestamp: new Date().toLocaleString(),
-      mode,
-      inputPreview: sourceText.slice(0, 200),
-      result: newResult,
+  const showInput = useMemo(() => {
+    if (activeTab === "current") return currentInput || text;
+    return activeHistoryItem?.inputText ?? "";
+  }, [activeTab, currentInput, text, activeHistoryItem]);
+
+  function addToHistory(item: Omit<HistoryItem, "id">) {
+    const newItem: HistoryItem = {
+      ...item,
+      id: crypto.randomUUID(),
     };
-    setHistory((prev) => [entry, ...prev].slice(0, 20)); // max 20 Einträge
-  };
+    setHistory((prev) => {
+      const updated = [newItem, ...prev].slice(0, HISTORY_MAX_ITEMS);
+      saveHistory(updated);
+      return updated;
+    });
+  }
 
-  // ─────────────────────────────────────────────
-  // Text-basierte Anfrage
-  // ─────────────────────────────────────────────
-  const handleSubmit = async () => {
-    setError("");
-    setResult(null);
-
+  async function handleCompactText() {
     if (!text.trim()) {
-      setError("Bitte gib einen Text ein oder lade eine Datei hoch.");
+      setError("Bitte gib zuerst einen Text ein oder lade eine Datei hoch.");
       return;
     }
+    setIsLoading(true);
+    setError(null);
+    setActiveTab("current");
+    setSelectedHistoryId(null);
 
-    setLoading(true);
+    const options: CompactOptions = {};
+    if (mode === "flashcards") {
+      options.maxFlashcards = maxFlashcards;
+      options.detailLevel = detailLevel;
+    }
+
     try {
       const res = await fetch(`${API_BASE}/api/compact`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ text, mode, language }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, mode, language, options }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok || data.success === false) {
-        const msg =
-          data?.error?.message ||
-          "Es ist ein Fehler bei der Verarbeitung aufgetreten.";
-        setError(msg);
-      } else {
-        const resultData = data.result as ApiResult;
-        setResult(resultData);
-        addToHistory(resultData, text);
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || `Fehler: ${res.status}`);
       }
-    } catch (e) {
-      console.error(e);
-      setError("Server nicht erreichbar. Läuft das Backend?");
+
+      const data: CompactResponse = await res.json();
+      const resultText = data.result ?? "";
+
+      setCurrentResult(resultText);
+      setCurrentInput(text);
+
+      addToHistory({
+        timestamp: new Date().toISOString(),
+        mode,
+        language,
+        inputText: text,
+        resultText,
+      });
+    } catch (err: any) {
+      setError(err.message || "Es ist ein Fehler aufgetreten.");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  };
+  }
 
-  // ─────────────────────────────────────────────
-  // Datei-Upload (PDF + Bilder)
-  // ─────────────────────────────────────────────
-  const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  async function handleCompactFile() {
+    if (!uploadFile) {
+      setError("Bitte wähle zuerst eine Datei aus.");
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    setActiveTab("current");
+    setSelectedHistoryId(null);
 
-    setError("");
-    setResult(null);
-    setLoading(true);
+    const formData = new FormData();
+    formData.append("file", uploadFile);
+    formData.append("mode", mode);
+    formData.append("language", language);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("mode", mode);
-      formData.append("language", language);
-
       const res = await fetch(`${API_BASE}/api/compact-file`, {
         method: "POST",
         body: formData,
       });
 
-      const data = await res.json();
-
-      if (!res.ok || data.success === false) {
-        const msg =
-          data?.error?.message ||
-          "Es ist ein Fehler bei der Verarbeitung der Datei aufgetreten.";
-        setError(msg);
-      } else {
-        const resultData = data.result as ApiResult;
-        setResult(resultData);
-
-        // Falls das Backend den extrahierten Text zurückgibt, in das Textfeld setzen
-        if (data.text && typeof data.text === "string") {
-          setText(data.text);
-          addToHistory(resultData, data.text);
-        } else {
-          addToHistory(resultData, `Datei: ${file.name}`);
-        }
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || `Fehler: ${res.status}`);
       }
-    } catch (e) {
-      console.error(e);
-      setError("Server nicht erreichbar. Läuft das Backend?");
+
+      const data: CompactResponse = await res.json();
+      const resultText = data.result ?? "";
+      const extracted = data.text ?? "";
+
+      setCurrentResult(resultText);
+      setCurrentInput(extracted || `📄 ${uploadFile.name}`);
+
+      if (extracted) setText(extracted);
+
+      addToHistory({
+        timestamp: new Date().toISOString(),
+        mode,
+        language,
+        inputText: extracted || `Datei: ${uploadFile.name}`,
+        resultText,
+      });
+    } catch (err: any) {
+      setError(err.message || "Es ist ein Fehler beim Datei-Upload aufgetreten.");
     } finally {
-      setLoading(false);
-      event.target.value = ""; // gleiche Datei erneut auswählbar
+      setIsLoading(false);
     }
-  };
+  }
 
-  // ─────────────────────────────────────────────
-  // Export-Funktionen
-  // ─────────────────────────────────────────────
-  const buildResultText = (): string => {
-    if (!result) return "";
-    if (mode === "summary" || mode === "kids" || mode === "short") {
-      return result.summary ?? "";
-    }
-    if (mode === "bullets") {
-      return (result.bullets ?? []).join("\n");
-    }
-    if (mode === "flashcards") {
-      return (result.cards ?? [])
-        .map(
-          (c, i) =>
-            `Karte ${i + 1}\nFrage: ${c.question}\nAntwort: ${c.answer}`
-        )
-        .join("\n\n");
-    }
-    return "";
-  };
+  function handleCopy() {
+    if (!showResult) return;
+    navigator.clipboard.writeText(showResult).catch(() => {
+      setError("Kopieren in die Zwischenablage ist fehlgeschlagen.");
+    });
+  }
 
-  const handleCopy = () => {
-    const textToCopy = buildResultText();
-    if (!textToCopy) return;
-    navigator.clipboard.writeText(textToCopy);
-  };
-
-  const downloadFile = (
-    content: string,
-    filename: string,
-    mime: string
-  ) => {
-    const blob = new Blob([content], { type: mime });
+  function handleDownloadTxt() {
+    if (!showResult) return;
+    const blob = new Blob([showResult], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = filename;
+    a.download = "wissen-kompaktor.txt";
     a.click();
     URL.revokeObjectURL(url);
-  };
+  }
 
-  const handleDownloadTxt = () => {
-    const content = buildResultText();
-    if (!content) return;
-    downloadFile(
-      content,
-      `wissen-kompaktor-${mode}.txt`,
-      "text/plain;charset=utf-8"
-    );
-  };
+  function handleDownloadPdf() {
+    if (!showResult) return;
+    const doc = new jsPDF();
+    const lineHeight = 7;
+    const margin = 10;
+    const maxWidth = 190;
+    const lines = doc.splitTextToSize(showResult, maxWidth);
+    let y = margin;
 
-  const handleDownloadPdf = () => {
-    const content = buildResultText();
-    if (!content) return;
-    downloadFile(
-      content,
-      `wissen-kompaktor-${mode}.pdf`,
-      "application/pdf"
-    );
-  };
+    lines.forEach((line: string) => {
+      if (y > 280) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.text(line, margin, y);
+      y += lineHeight;
+    });
 
-  const handleDownloadImage = () => {
-    alert("Bild-Export wird später hinzugefügt 🙂");
-  };
+    doc.save("wissen-kompaktor.pdf");
+  }
 
-  // ─────────────────────────────────────────────
-  // Rendering: Ergebnis
-  // ─────────────────────────────────────────────
-  const renderResult = (r: ApiResult | null, m: Mode) => {
-    if (!r) {
-      return (
-        <div className="text-slate-500 text-xs">
-          Hier erscheint das Ergebnis.
-        </div>
-      );
-    }
+  const isCurrentModeFlashcards = mode === "flashcards";
 
-    if (m === "summary" || m === "kids" || m === "short") {
-      return (
-        <div className="whitespace-pre-line">
-          {r.summary || "Keine Zusammenfassung gefunden."}
-        </div>
-      );
-    }
-
-    if (m === "bullets") {
-      const bullets = r.bullets ?? [];
-      return (
-        <ul className="list-disc list-inside space-y-1">
-          {bullets.map((b, i) => (
-            <li key={i}>{b}</li>
-          ))}
-        </ul>
-      );
-    }
-
-    if (m === "flashcards") {
-      const cards = r.cards ?? [];
-      return (
-        <div className="space-y-3">
-          {cards.map((card, i) => (
-            <div
-              key={i}
-              className="rounded-xl border border-slate-700 bg-slate-900/60 p-3"
-            >
-              <div className="text-xs uppercase text-slate-400">
-                Karte {i + 1}
-              </div>
-              <div className="font-semibold mt-1">
-                ❓ {card.question}
-              </div>
-              <div className="mt-1 text-sm text-slate-200">
-                ✅ {card.answer}
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    return null;
-  };
-
-  const renderHistory = () => {
-    if (history.length === 0) {
-      return (
-        <div className="text-xs text-slate-500">
-          Noch keine bisherigen Kompaktierungen.
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-3">
-        {history.map((entry) => (
-          <button
-            key={entry.id}
-            type="button"
-            onClick={() => {
-              setMode(entry.mode);
-              setResult(entry.result);
-              setActiveTab("current");
-            }}
-            className="w-full text-left rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2 hover:border-sky-500 transition"
-          >
-            <div className="flex justify-between text-xs text-slate-400 mb-1">
-              <span>{entry.timestamp}</span>
-              <span>
-                {MODES.find((m) => m.id === entry.mode)?.label ??
-                  entry.mode}
-              </span>
-            </div>
-            <div className="text-xs text-slate-200 line-clamp-2">
-              {entry.inputPreview}
-            </div>
-          </button>
-        ))}
-      </div>
-    );
-  };
-
-  // ─────────────────────────────────────────────
-  // JSX
-  // ─────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-6">
-      {/* TOP-BANNER */}
-      <div className="max-w-6xl mx-auto mb-4">
-        <AdBanner
-          cookieConsent={cookieConsent}
-          slot="4124950988" // Block Oben
-          style={{ display: "block", width: "100%", minHeight: 90 }}
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-50">
+      <div className="mx-auto max-w-6xl px-4 py-6 md:py-10">
+        {/* Cookie-Banner: schreibt seine Entscheidung in localStorage */}
+        <CookieBanner
+          onChange={(value: any) => {
+            try {
+              localStorage.setItem("wk_cookie_consent", String(value));
+            } catch {
+              // ignore
+            }
+          }}
         />
-      </div>
 
-      <div className="max-w-6xl mx-auto flex gap-4">
-        {/* LINKES AD – nur auf XL-Screens sichtbar */}
-        <div className="hidden xl:block w-56">
-          <AdBanner
-            cookieConsent={cookieConsent}
-            slot="5661393931" // Block Links
-            style={{ display: "block", width: "100%", minHeight: 600 }}
-          />
-        </div>
-
-        {/* Haupt-Card */}
-        <div className="flex-1">
-          <div className="w-full bg-slate-900/70 border border-slate-800 rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+        {/* Header */}
+        <header className="mb-6 flex flex-col gap-3 md:mb-8 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
               Wissen-Kompaktor
             </h1>
-
-            {/* Untertitel – nur der "grüne" Teil */}
-            <p className="text-slate-400 mb-6 text-sm sm:text-base">
+            <p className="mt-1 text-sm text-slate-300 md:text-base">
               Komprimiere Inhalte intelligent.
             </p>
+          </div>
 
-            {/* Modus-Auswahl */}
-            <div className="flex flex-wrap gap-2 mb-2">
-              {MODES.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setMode(m.id)}
-                  className={`px-3 py-1.5 rounded-full text-sm border transition ${
-                    mode === m.id
-                      ? "bg-sky-500 text-white border-sky-500"
-                      : "bg-slate-900 text-slate-200 border-slate-700 hover:border-slate-500"
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Sprachauswahl */}
-            <div className="flex items-center gap-2 mb-4 flex-wrap">
-              <span className="text-xs text-slate-400">
-                Antwortsprache:
+          {/* Spracheinstellungen */}
+          <div className="flex flex-col items-start gap-1 text-xs sm:flex-row sm:items-center sm:gap-2 md:text-sm">
+            <label className="font-medium text-slate-300">
+              Antwortsprache
+              <span className="ml-1 text-[10px] font-normal text-slate-400">
+                (Eingabesprache wird automatisch erkannt)
               </span>
-
-              {/* Deutsch immer links, grün */}
-              <button
-                type="button"
-                onClick={() => setLanguage("de")}
-                className="px-2 py-1 rounded-full text-xs bg-emerald-500 text-white border border-emerald-500"
-              >
-                Deutsch
-              </button>
-
-              {/* Andere Sprachen wählbar */}
-              {OTHER_LANGUAGES.map((lang) => (
-                <button
-                  key={lang.code}
-                  type="button"
-                  onClick={() => setLanguage(lang.code)}
-                  className={`px-2 py-1 rounded-full text-xs border transition ${
-                    language === lang.code
-                      ? "bg-emerald-500 text-white border-emerald-500"
-                      : "bg-slate-900 text-slate-200 border-slate-700 hover:border-slate-500"
-                  }`}
-                >
-                  {lang.label}
-                </button>
+            </label>
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value as LanguageCode)}
+              className="mt-0.5 w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-50 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-500/60 sm:w-48"
+            >
+              {(Object.keys(languageLabels) as LanguageCode[]).map((lang) => (
+                <option key={lang} value={lang}>
+                  {languageLabels[lang]}
+                </option>
               ))}
-            </div>
+            </select>
+          </div>
+        </header>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              {/* Eingabe-Spalte */}
-              <div className="flex flex-col">
-                <label className="text-sm font-medium mb-2 text-slate-200">
-                  Eingabetext
-                </label>
-                <textarea
-                  className="flex-1 min-h-[220px] max-h-[60vh] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 resize-none overflow-y-auto"
-                  placeholder="Füge hier deinen Text ein..."
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                />
-                <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-                  <span>{wordCount} Wörter</span>
-                  <button
-                    type="button"
-                    onClick={() => setText("")}
-                    className="hover:text-sky-400"
-                  >
-                    Leeren
-                  </button>
-                </div>
+        {/* Ads Top */}
+        <div className="mb-4">
+          <AdBanner slotId="4124950988" />
+        </div>
 
-                {/* Datei-Upload */}
-                <div className="mt-4">
-                  <label className="text-xs font-medium text-slate-300">
-                    Oder lade eine PDF- oder Bilddatei hoch:
-                  </label>
-                  <div className="mt-2">
-                    <label className="inline-flex items-center px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-200 cursor-pointer hover:border-sky-500">
-                      Datei auswählen (PDF/Bild)
-                      <input
-                        type="file"
-                        accept=".pdf,image/*"
-                        className="hidden"
-                        onChange={handleFileChange}
-                      />
-                    </label>
+        <main className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+          {/* Linke Spalte: Input + Optionen */}
+          <section className="space-y-4">
+            <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 shadow-lg">
+              <div className="flex flex-col gap-4 p-4 sm:p-5">
+                {/* Modus-Auswahl */}
+                <div>
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Modus
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {(
+                      ["summary", "bullets", "flashcards", "kids", "short"] as Mode[]
+                    ).map((m) => {
+                      const isActive = mode === m;
+                      return (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setMode(m)}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                            isActive
+                              ? "border-violet-400 bg-violet-500/15 text-violet-100 shadow-sm"
+                              : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
+                          }`}
+                        >
+                          {modeLabels[m]}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className="mt-4 inline-flex items-center justify-center rounded-xl bg-sky-500 hover:bg-sky-600 disabled:bg-sky-900 px-4 py-2 text-sm font-semibold transition"
-                >
-                  {loading ? "Wird verarbeitet..." : "Kompaktieren"}
-                </button>
+                {/* Lernkarten-Optionen */}
+                {isCurrentModeFlashcards && (
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-xs sm:text-sm">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="font-medium text-slate-100">
+                        Lernkarten-Einstellungen
+                      </span>
+                      <span className="text-[10px] uppercase tracking-wide text-violet-300">
+                        Beta
+                      </span>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                          Max. Karten
+                        </label>
+                        <input
+                          type="number"
+                          min={3}
+                          max={50}
+                          value={maxFlashcards}
+                          onChange={(e) =>
+                            setMaxFlashcards(
+                              Math.min(
+                                50,
+                                Math.max(3, Number(e.target.value) || 3)
+                              )
+                            )
+                          }
+                          className="w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-50 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-500/60"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                          Detailgrad
+                        </label>
+                        <select
+                          value={detailLevel}
+                          onChange={(e) =>
+                            setDetailLevel(e.target.value as DetailLevel)
+                          }
+                          className="w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-50 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-500/60"
+                        >
+                          <option value="compact">Kompakt</option>
+                          <option value="normal">Normal</option>
+                          <option value="verbose">Ausführlich</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Textfeld */}
+                <div>
+                  <label
+                    htmlFor="wk-input"
+                    className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400"
+                  >
+                    Eingabetext
+                  </label>
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/70">
+                    <textarea
+                      id="wk-input"
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
+                      placeholder="Füge hier deinen Text ein oder lade eine Datei hoch (PDF/Bild) ..."
+                      className="h-48 min-h-[8rem] max-h-[24rem] w-full resize-none bg-transparent px-3 py-2 text-sm text-slate-50 outline-none scrollbar-thin scrollbar-track-slate-950 scrollbar-thumb-slate-700/80"
+                    />
+                    <div className="flex items-center justify-between border-t border-slate-800 px-3 py-1.5 text-[11px] text-slate-400">
+                      <span>
+                        Zeichen:{" "}
+                        <span className="font-medium text-slate-200">
+                          {charCount}
+                        </span>{" "}
+                        · Wörter:{" "}
+                        <span className="font-medium text-slate-200">
+                          {wordCount}
+                        </span>
+                      </span>
+                      <span className="hidden sm:inline">
+                        Eingabesprache ist flexibel – die Antwort nutzt deine
+                        gewählte Sprache.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Datei-Upload + Aktionen */}
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div className="flex flex-col gap-2 text-xs text-slate-300">
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-700 bg-slate-950/60 px-3 py-2 hover:border-slate-500">
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept=".txt,.md,.pdf,image/*"
+                        onChange={(e) =>
+                          setUploadFile(e.target.files?.[0] ?? null)
+                        }
+                      />
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-xs">
+                        📎
+                      </span>
+                      <span>
+                        {uploadFile
+                          ? `Ausgewählt: ${uploadFile.name}`
+                          : "Datei wählen (PDF, Text, Bild)"}
+                      </span>
+                    </label>
+                    <span className="text-[11px] text-slate-500">
+                      Dateien werden sicher nur zur Komprimierung verwendet.
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      disabled={isLoading}
+                      onClick={handleCompactFile}
+                      className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs font-medium text-slate-100 shadow-sm transition hover:border-slate-500 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      📄 Datei komprimieren
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isLoading}
+                      onClick={handleCompactText}
+                      className="inline-flex items-center justify-center rounded-full bg-violet-500 px-4 py-1.5 text-xs font-semibold text-white shadow-md shadow-violet-500/30 transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isLoading ? "Komprimiere ..." : "Text komprimieren"}
+                    </button>
+                  </div>
+                </div>
 
                 {error && (
-                  <div className="mt-3 text-xs text-red-400 bg-red-900/30 border border-red-800 px-3 py-2 rounded-lg">
+                  <div className="rounded-lg border border-red-500/40 bg-red-950/40 px-3 py-2 text-xs text-red-100">
                     {error}
                   </div>
                 )}
               </div>
+            </div>
 
-              {/* Ausgabe-Spalte */}
-              <div className="flex flex-col">
-                {/* Tabs Aktuell / History */}
-                <div className="flex items-center gap-3 mb-2">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("current")}
-                    className={`text-xs px-2 py-1 rounded-full border ${
-                      activeTab === "current"
-                        ? "bg-sky-500 border-sky-500 text-white"
-                        : "border-slate-700 text-slate-300"
-                    }`}
-                  >
-                    Aktuell
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("history")}
-                    className={`text-xs px-2 py-1 rounded-full border ${
-                      activeTab === "history"
-                        ? "bg-sky-500 border-sky-500 text-white"
-                        : "border-slate-700 text-slate-300"
-                    }`}
-                  >
-                    Zuletzt gemacht
-                  </button>
+            {/* Ads Left (nur XL) */}
+            <div className="hidden xl:block">
+              <AdBanner slotId="5661393931" />
+            </div>
+          </section>
 
-                  <div className="ml-auto flex items-center gap-2 text-xs text-slate-400">
-                    <button
-                      type="button"
-                      onClick={handleCopy}
-                      className="hover:text-sky-400"
-                    >
-                      Kopieren
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDownloadTxt}
-                      className="hover:text-sky-400"
-                    >
-                      .txt
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDownloadPdf}
-                      className="hover:text-sky-400"
-                    >
-                      .pdf
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDownloadImage}
-                      className="hover:text-sky-400"
-                    >
-                      Bild
-                    </button>
+          {/* Rechte Spalte: Ergebnisse + History */}
+          <section className="space-y-4">
+            <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 shadow-lg">
+              {/* Tabs */}
+              <div className="flex items-center border-b border-slate-800 bg-slate-900/70 px-3 py-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("current")}
+                  className={`mr-2 rounded-full px-3 py-1 font-medium transition ${
+                    activeTab === "current"
+                      ? "bg-slate-800 text-slate-50"
+                      : "text-slate-400 hover:bg-slate-900"
+                  }`}
+                >
+                  Aktuell
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("history")}
+                  className={`mr-2 rounded-full px-3 py-1 font-medium transition ${
+                    activeTab === "history"
+                      ? "bg-slate-800 text-slate-50"
+                      : "text-slate-400 hover:bg-slate-900"
+                  }`}
+                >
+                  Zuletzt gemacht
+                </button>
+                <div className="ml-auto flex items-center gap-2 text-[11px] text-slate-400">
+                  {activeTab === "current" ? (
+                    <>
+                      <span>{modeLabels[mode]}</span>
+                      <span>·</span>
+                      <span>{languageLabels[language]}</span>
+                    </>
+                  ) : activeHistoryItem ? (
+                    <>
+                      <span>{modeLabels[activeHistoryItem.mode]}</span>
+                      <span>·</span>
+                      <span>{languageLabels[activeHistoryItem.language]}</span>
+                    </>
+                  ) : (
+                    <span>Keine Auswahl</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Inhalt */}
+              <div className="grid gap-0 border-t border-slate-800/60 md:grid-cols-2">
+                {/* Original */}
+                <div className="border-r border-slate-800/60 bg-slate-950/70 p-3 text-xs">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="font-semibold text-slate-200">
+                      Ausgangstext
+                    </span>
+                    <span className="text-[10px] uppercase tracking-wide text-slate-500">
+                      {showInput ? "Vorschau" : "Kein Text"}
+                    </span>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto rounded-lg bg-slate-950/70 p-2 text-[11px] leading-snug text-slate-300 scrollbar-thin scrollbar-track-slate-950 scrollbar-thumb-slate-700/80">
+                    {showInput ? (
+                      <pre className="whitespace-pre-wrap font-mono">
+                        {showInput}
+                      </pre>
+                    ) : (
+                      <span className="text-slate-500">
+                        Hier erscheint eine Vorschau deines Ausgangstextes, sobald
+                        du etwas komprimierst.
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex-1 min-h-[220px] max-h-[60vh] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm overflow-y-auto">
-                  {loading && !result && activeTab === "current" && (
-                    <div className="text-slate-500 text-xs">
-                      Bitte warten…
+                {/* Ergebnis */}
+                <div className="bg-slate-950/60 p-3 text-xs">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="font-semibold text-slate-200">
+                      Komprimiertes Ergebnis
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      <button
+                        type="button"
+                        onClick={handleCopy}
+                        disabled={!showResult}
+                        className="rounded-full border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] text-slate-100 hover:border-slate-500 disabled:opacity-40"
+                      >
+                        Kopieren
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDownloadTxt}
+                        disabled={!showResult}
+                        className="rounded-full border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] text-slate-100 hover:border-slate-500 disabled:opacity-40"
+                      >
+                        .txt
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDownloadPdf}
+                        disabled={!showResult}
+                        className="rounded-full border border-slate-700 bg-slate-900 px-2 py-0.5 text-[10px] text-slate-100 hover:border-slate-500 disabled:opacity-40"
+                      >
+                        .pdf
+                      </button>
                     </div>
-                  )}
-                  {!loading &&
-                    (activeTab === "current"
-                      ? renderResult(result, mode)
-                      : renderHistory())}
+                  </div>
+                  <div className="max-h-60 overflow-y-auto rounded-lg bg-slate-950/80 p-2 text-[11px] leading-snug text-slate-200 scrollbar-thin scrollbar-track-slate-950 scrollbar-thumb-slate-700/80">
+                    {showResult ? (
+                      <pre className="whitespace-pre-wrap font-mono">
+                        {showResult}
+                      </pre>
+                    ) : (
+                      <span className="text-slate-500">
+                        Hier erscheinen Zusammenfassung, Stichpunkte, Lernkarten
+                        usw., sobald du etwas komprimierst.
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Cookie-Banner */}
-            <CookieBanner
-              value={cookieConsent}
-              onChange={setCookieConsent}
-            />
-          </div>
-        </div>
+            {/* History */}
+            <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/70">
+              <div className="border-b border-slate-800 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Verlauf (max. {HISTORY_MAX_ITEMS})
+              </div>
+              <div className="max-h-56 overflow-y-auto text-xs scrollbar-thin scrollbar-track-slate-950 scrollbar-thumb-slate-700/80">
+                {history.length === 0 ? (
+                  <div className="px-3 py-3 text-slate-500">
+                    Noch nichts komprimiert – starte mit einem Text oder einer
+                    Datei.
+                  </div>
+                ) : (
+                  history.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveTab("history");
+                        setSelectedHistoryId(item.id);
+                      }}
+                      className={`flex w-full items-start gap-2 border-b border-slate-900 px-3 py-2 text-left hover:bg-slate-900/80 ${
+                        selectedHistoryId === item.id && activeTab === "history"
+                          ? "bg-slate-900/80"
+                          : ""
+                      }`}
+                    >
+                      <div className="mt-0.5 h-1.5 w-1.5 rounded-full bg-violet-400" />
+                      <div className="flex-1">
+                        <div className="mb-0.5 flex flex-wrap items-center gap-1">
+                          <span className="text-[11px] font-semibold text-slate-100">
+                            {modeLabels[item.mode]}
+                          </span>
+                          <span className="text-[10px] text-slate-500">·</span>
+                          <span className="text-[10px] text-slate-400">
+                            {languageLabels[item.language]}
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            ·{" "}
+                            {new Date(item.timestamp).toLocaleString(undefined, {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            })}
+                          </span>
+                        </div>
+                        <div className="line-clamp-2 text-[11px] text-slate-400">
+                          {item.inputText}
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
 
-        {/* RECHTES AD – nur auf XL-Screens sichtbar */}
-        <div className="hidden xl:block w-56">
-          <AdBanner
-            cookieConsent={cookieConsent}
-            slot="3822640606" // Block Rechts
-            style={{ display: "block", width: "100%", minHeight: 600 }}
-          />
-        </div>
+            {/* Ads Right (nur XL) */}
+            <div className="hidden xl:block">
+              <AdBanner slotId="3822640606" />
+            </div>
+          </section>
+        </main>
       </div>
     </div>
   );
 };
 
 export default App;
-
