@@ -4,6 +4,7 @@ import CookieBanner, { type CookieConsentValue } from "./CookieBanner";
 import AdBanner from "./AdBanner";
 
 type Mode = "summary" | "bullets" | "flashcards" | "kids" | "short";
+type LanguageCode = "de" | "en" | "es" | "fr" | "tr" | "ar" | "ja" | "zh";
 
 interface Flashcard {
   question: string;
@@ -34,9 +35,21 @@ const MODES: { id: Mode; label: string }[] = [
   { id: "short", label: "In 5 Sätzen" },
 ];
 
+const LANGUAGES: { code: LanguageCode; label: string }[] = [
+  { code: "de", label: "Deutsch" },
+  { code: "en", label: "Englisch" },
+  { code: "es", label: "Spanisch" },
+  { code: "fr", label: "Französisch" },
+  { code: "tr", label: "Türkisch" },
+  { code: "ar", label: "Arabisch" },
+  { code: "ja", label: "Japanisch" },
+  { code: "zh", label: "Chinesisch" },
+];
+
 const App: React.FC = () => {
   const [text, setText] = useState("");
   const [mode, setMode] = useState<Mode>("summary");
+  const [language, setLanguage] = useState<LanguageCode>("de");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ApiResult | null>(null);
   const [error, setError] = useState("");
@@ -110,7 +123,7 @@ const App: React.FC = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ text, mode }),
+        body: JSON.stringify({ text, mode, language }),
       });
 
       const data = await res.json();
@@ -150,8 +163,8 @@ const App: React.FC = () => {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("mode", mode);
+      formData.append("language", language);
 
-      // richtiger Backend-Endpoint für Datei-Upload
       const res = await fetch(`${API_BASE}/api/compact-file`, {
         method: "POST",
         body: formData,
@@ -384,7 +397,7 @@ const App: React.FC = () => {
             </p>
 
             {/* Modus-Auswahl */}
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="flex flex-wrap gap-2 mb-2">
               {MODES.map((m) => (
                 <button
                   key={m.id}
@@ -400,6 +413,27 @@ const App: React.FC = () => {
               ))}
             </div>
 
+            {/* Sprachauswahl */}
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
+              <span className="text-xs text-slate-400">
+                Antwortsprache:
+              </span>
+              {LANGUAGES.map((lang) => (
+                <button
+                  key={lang.code}
+                  type="button"
+                  onClick={() => setLanguage(lang.code)}
+                  className={`px-2 py-1 rounded-full text-xs border transition ${
+                    language === lang.code
+                      ? "bg-emerald-500 text-white border-emerald-500"
+                      : "bg-slate-900 text-slate-200 border-slate-700 hover:border-slate-500"
+                  }`}
+                >
+                  {lang.label}
+                </button>
+              ))}
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
               {/* Eingabe-Spalte */}
               <div className="flex flex-col">
@@ -407,7 +441,7 @@ const App: React.FC = () => {
                   Eingabetext
                 </label>
                 <textarea
-                  className="flex-1 min-h-[220px] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 resize-vertical"
+                  className="flex-1 min-h-[220px] max-h-[60vh] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 resize-none overflow-y-auto"
                   placeholder="Füge hier deinen Text ein..."
                   value={text}
                   onChange={(e) => setText(e.target.value)}
@@ -515,7 +549,7 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex-1 min-h-[220px] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm overflow-auto">
+                <div className="flex-1 min-h-[220px] max-h-[60vh] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm overflow-y-auto">
                   {loading && !result && activeTab === "current" && (
                     <div className="text-slate-500 text-xs">
                       Bitte warten…
@@ -551,3 +585,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+

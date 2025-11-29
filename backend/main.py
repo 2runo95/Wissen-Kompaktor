@@ -15,7 +15,6 @@ from processors.flashcards import process_flashcards
 from processors.simple import process_simple
 from prompts import build_kids_prompt, build_short_summary_prompt
 
-
 # -------------------------------------------------
 # ENV & OpenAI-Client
 # -------------------------------------------------
@@ -60,6 +59,9 @@ class CompactOptions(BaseModel):
 class CompactRequest(BaseModel):
     text: str
     mode: str
+    # Sprache kann direkt oben übergeben werden (vom Frontend)
+    language: Optional[str] = "de"
+    # options bleibt für spätere Feinsteuerung erhalten
     options: Optional[CompactOptions] = None
 
 
@@ -115,32 +117,70 @@ async def extract_text_from_upload(file: UploadFile) -> str:
 # -------------------------------------------------
 
 
+def _build_language_instruction(language: str) -> str:
+    """
+    Baut eine kurze Sprach-Anweisung, die dem Prompt/Text vorangestellt wird.
+    Das ist bewusst simpel gehalten, damit es mit allen Prozessoren funktioniert.
+    """
+    lang = (language or "de").lower()
+
+    if lang == "en":
+        return "Answer in English."
+    if lang == "es":
+        return "Responde en español."
+    if lang == "fr":
+        return "Réponds en français."
+    if lang == "tr":
+        return "Lütfen Türkçe cevap ver."
+    if lang == "ar":
+        return "يرجى الإجابة باللغة العربية."
+    if lang == "ja":
+        return "日本語で回答してください。"
+    if lang == "zh":
+        return "请用中文回答。"
+
+    # Standard: Deutsch
+    return "Antworte bitte auf Deutsch."
+
+
 def run_compact(
     client: OpenAI,
     text: str,
     mode: str,
-    options: Optional[CompactOptions],
+    language: str = "de",
+    options: Optional[CompactOptions] = None,
 ):
     """
     Zentrale Verarbeitungslogik für alle Modi.
     Wird von /api/compact (Text) und /api/compact-file (Datei) genutzt.
     """
 
+    language_instruction = _build_language_instruction(language)
+    # Für die meisten Prozessoren hängen wir die Sprachinfo einfach an den Text an.
+    text_with_lang = f"{language_instruction}\n\n{text}"
+
     if mode == "summary":
-        return process_summary(client, text)
+        # Zusammenfassung – mit Sprachhinweis im Text
+        return process_summary(client, text_with_lang)
 
     if mode == "bullets":
-        return process_bullets(client, text)
+        # Stichpunkte – ebenfalls mit Sprachhinweis
+        return process_bullets(client, text_with_lang)
 
     if mode == "flashcards":
-        return process_flashcards(client, text)
+        # Lernkarten – Sprachhinweis am Anfang des Textes
+        return process_flashcards(client, text_with_lang)
 
     if mode == "kids":
-        prompt = build_kids_prompt(text)
+        # Für Kinder erklärt – wir erweitern den Prompt um die Sprache
+        base_prompt = build_kids_prompt(text)
+        prompt = f"{base_prompt}\n\n{language_instruction}"
         return process_simple(client, prompt)
 
     if mode == "short":
-        prompt = build_short_summary_prompt(text)
+        # In 5 Sätzen – ebenfalls Sprachhinweis anhängen
+        base_prompt = build_short_summary_prompt(text)
+        prompt = f"{base_prompt}\n\n{language_instruction}"
         return process_simple(client, prompt)
 
     raise ValueError(f"Unbekannter Modus: {mode}")
@@ -159,11 +199,19 @@ def health_check():
 @app.post("/api/compact")
 def compact_text(req: CompactRequest):
     """
-    Bestehender Endpoint für reinen Text aus dem Frontend.
-    Nutzt jetzt die gemeinsame run_compact-Logik.
+    Endpoint für reinen Text aus dem Frontend.
+    Nutzt die gemeinsame run_compact-Logik.
     """
     try:
-        result = run_compact(client, req.text, req.mode, req.options)
+        # Sprache aus Request oder aus options, Fallback: "de"
+        lang = req.language or (req.options.language if req.options else "de")
+        result = run_compact(
+            client=client,
+            text=req.text,
+            mode=req.mode,
+            language=lang,
+            options=req.options,
+        )
         return {"success": True, "result": result}
     except Exception as e:
         print("Fehler in /api/compact:", e)
@@ -173,24 +221,34 @@ def compact_text(req: CompactRequest):
 @app.post("/api/compact-file")
 async def compact_file(
     mode: str = Form("summary"),
+    language: str = Form("de"),
     file: UploadFile = File(...),
 ):
     """
-    NEUER Endpoint:
+    Endpoint für Datei-Uploads:
     - nimmt eine Datei (txt, md, pdf)
     - extrahiert Text
-    - ruft run_compact mit demselben Modus auf
+    - ruft run_compact mit Modus + Sprache auf
     """
     try:
         text = await extract_text_from_upload(file)
         if not text.strip():
             return {
                 "success": False,
-                "error": {"message": "Die Datei konnte nicht in Text umgewandelt werden."},
+                "error": {
+                    "message": "Die Datei konnte nicht in Text umgewandelt werden."
+                },
             }
 
-        result = run_compact(client, text, mode, None)
-        return {"success": True, "result": result}
+        result = run_compact(
+            client=client,
+            text=text,
+            mode=mode,
+            language=language,
+            options=None,
+        )
+        return {"success": True, "result": result, "text": text}
     except Exception as e:
         print("Fehler in /api/compact-file:", e)
         return {"success": False, "error": {"message": str(e)}}
+
