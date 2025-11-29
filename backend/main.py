@@ -59,9 +59,7 @@ class CompactOptions(BaseModel):
 class CompactRequest(BaseModel):
     text: str
     mode: str
-    # Sprache kann direkt oben übergeben werden (vom Frontend)
     language: Optional[str] = "de"
-    # options bleibt für spätere Feinsteuerung erhalten
     options: Optional[CompactOptions] = None
 
 
@@ -118,10 +116,6 @@ async def extract_text_from_upload(file: UploadFile) -> str:
 
 
 def _build_language_instruction(language: str) -> str:
-    """
-    Baut eine kurze Sprach-Anweisung, die dem Prompt/Text vorangestellt wird.
-    Das ist bewusst simpel gehalten, damit es mit allen Prozessoren funktioniert.
-    """
     lang = (language or "de").lower()
 
     if lang == "en":
@@ -156,29 +150,23 @@ def run_compact(
     """
 
     language_instruction = _build_language_instruction(language)
-    # Für die meisten Prozessoren hängen wir die Sprachinfo einfach an den Text an.
     text_with_lang = f"{language_instruction}\n\n{text}"
 
     if mode == "summary":
-        # Zusammenfassung – mit Sprachhinweis im Text
         return process_summary(client, text_with_lang)
 
     if mode == "bullets":
-        # Stichpunkte – ebenfalls mit Sprachhinweis
         return process_bullets(client, text_with_lang)
 
     if mode == "flashcards":
-        # Lernkarten – Sprachhinweis am Anfang des Textes
         return process_flashcards(client, text_with_lang)
 
     if mode == "kids":
-        # Für Kinder erklärt – wir erweitern den Prompt um die Sprache
         base_prompt = build_kids_prompt(text)
         prompt = f"{base_prompt}\n\n{language_instruction}"
         return process_simple(client, prompt)
 
     if mode == "short":
-        # In 5 Sätzen – ebenfalls Sprachhinweis anhängen
         base_prompt = build_short_summary_prompt(text)
         prompt = f"{base_prompt}\n\n{language_instruction}"
         return process_simple(client, prompt)
@@ -203,7 +191,6 @@ def compact_text(req: CompactRequest):
     Nutzt die gemeinsame run_compact-Logik.
     """
     try:
-        # Sprache aus Request oder aus options, Fallback: "de"
         lang = req.language or (req.options.language if req.options else "de")
         result = run_compact(
             client=client,
@@ -251,4 +238,3 @@ async def compact_file(
     except Exception as e:
         print("Fehler in /api/compact-file:", e)
         return {"success": False, "error": {"message": str(e)}}
-

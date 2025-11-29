@@ -35,8 +35,7 @@ const MODES: { id: Mode; label: string }[] = [
   { id: "short", label: "In 5 Sätzen" },
 ];
 
-const LANGUAGES: { code: LanguageCode; label: string }[] = [
-  { code: "de", label: "Deutsch" },
+const OTHER_LANGUAGES: { code: LanguageCode; label: string }[] = [
   { code: "en", label: "Englisch" },
   { code: "es", label: "Spanisch" },
   { code: "fr", label: "Französisch" },
@@ -391,9 +390,9 @@ const App: React.FC = () => {
               Wissen-Kompaktor
             </h1>
 
+            {/* Untertitel – nur der "grüne" Teil */}
             <p className="text-slate-400 mb-6 text-sm sm:text-base">
-              Komprimiere Inhalte intelligent – Zusammenfassungen,
-              Stichpunkte, Lernkarten & mehr – direkt im Browser.
+              Komprimiere Inhalte intelligent.
             </p>
 
             {/* Modus-Auswahl */}
@@ -418,7 +417,18 @@ const App: React.FC = () => {
               <span className="text-xs text-slate-400">
                 Antwortsprache:
               </span>
-              {LANGUAGES.map((lang) => (
+
+              {/* Deutsch immer links, grün */}
+              <button
+                type="button"
+                onClick={() => setLanguage("de")}
+                className="px-2 py-1 rounded-full text-xs bg-emerald-500 text-white border border-emerald-500"
+              >
+                Deutsch
+              </button>
+
+              {/* Andere Sprachen wählbar */}
+              {OTHER_LANGUAGES.map((lang) => (
                 <button
                   key={lang.code}
                   type="button"
