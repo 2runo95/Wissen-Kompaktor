@@ -124,7 +124,12 @@ const App: React.FC = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ text, mode, language }),
+        // WICHTIG: Sprache geht jetzt in options.language ans Backend
+        body: JSON.stringify({
+          text,
+          mode,
+          options: { language },
+        }),
       });
 
       const data = await res.json();
@@ -166,7 +171,6 @@ const App: React.FC = () => {
       formData.append("mode", mode);
       formData.append("language", language);
 
-      // richtiger Backend-Endpoint für Datei-Upload
       const res = await fetch(`${API_BASE}/api/compact-file`, {
         method: "POST",
         body: formData,
@@ -183,7 +187,6 @@ const App: React.FC = () => {
         const resultData = data.result as ApiResult;
         setResult(resultData);
 
-        // Falls das Backend den extrahierten Text zurückgibt, in das Textfeld setzen
         if (data.text && typeof data.text === "string") {
           setText(data.text);
           addToHistory(resultData, data.text);
@@ -267,10 +270,92 @@ const App: React.FC = () => {
   };
 
   // ─────────────────────────────────────────────
-  // Rendering: Ergebnis
+  // Rendering: Ergebnis (mit Beispiel-Inhalten)
   // ─────────────────────────────────────────────
   const renderResult = (r: ApiResult | null, m: Mode) => {
+    // Wenn noch kein echtes Ergebnis da ist -> Demo-Content
     if (!r) {
+      if (m === "summary") {
+        return (
+          <div className="text-xs text-slate-200 whitespace-pre-line">
+            {`Beispiel-Zusammenfassung:
+
+Der Wissen-Kompaktor fasst längere Texte in wenigen Sätzen zusammen. 
+So kannst du dir schnell einen Überblick verschaffen, ohne alles lesen zu müssen.`}
+          </div>
+        );
+      }
+
+      if (m === "bullets") {
+        return (
+          <ul className="list-disc list-inside space-y-1 text-xs text-slate-200">
+            <li>⚡ Lange Texte werden automatisch gekürzt</li>
+            <li>📌 Wichtige Stichpunkte werden hervorgehoben</li>
+            <li>🎯 Ideal für Lernen, Prüfungsvorbereitung & Notizen</li>
+          </ul>
+        );
+      }
+
+      if (m === "flashcards") {
+        const demoCards: Flashcard[] = [
+          {
+            question: "Was macht der Wissen-Kompaktor?",
+            answer:
+              "Er verwandelt lange Texte in kurze Zusammenfassungen, Stichpunkte oder Lernkarten.",
+          },
+          {
+            question: "Wofür sind Lernkarten besonders nützlich?",
+            answer:
+              "Zum Wiederholen von Inhalten vor Prüfungen oder zum schnellen Abfragen.",
+          },
+        ];
+        return (
+          <div className="space-y-3 text-slate-200 text-xs">
+            {demoCards.map((card, i) => (
+              <div
+                key={i}
+                className="rounded-xl border border-slate-700 bg-slate-900/60 p-3"
+              >
+                <div className="text-[10px] uppercase text-slate-400">
+                  Beispielkarte {i + 1}
+                </div>
+                <div className="font-semibold mt-1">
+                  ❓ {card.question}
+                </div>
+                <div className="mt-1 text-[13px] text-slate-200">
+                  ✅ {card.answer}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      }
+
+      if (m === "kids") {
+        return (
+          <div className="text-xs text-slate-200 whitespace-pre-line">
+            {`Beispiel für „Für Kinder erklärt“:
+
+Der Wissen-Kompaktor erklärt schwierige Themen so,
+als würde man sie einem Kind in einfacher Sprache erzählen.`}
+          </div>
+        );
+      }
+
+      if (m === "short") {
+        return (
+          <div className="text-xs text-slate-200 whitespace-pre-line">
+            {`Beispiel für „In 5 Sätzen“:
+
+1. Der Wissen-Kompaktor reduziert lange Texte auf das Wichtigste.
+2. Er kann Zusammenfassungen, Stichpunkte und Lernkarten erzeugen.
+3. Du kannst wählen, wie kurz oder ausführlich das Ergebnis sein soll.
+4. Außerdem kannst du die Sprache der Antwort einstellen.
+5. So sparst du Zeit und lernst Inhalte schneller.`}
+          </div>
+        );
+      }
+
       return (
         <div className="text-slate-500 text-xs">
           Hier erscheint das Ergebnis.
@@ -278,9 +363,10 @@ const App: React.FC = () => {
       );
     }
 
+    // Ab hier: echtes Ergebnis anzeigen
     if (m === "summary" || m === "kids" || m === "short") {
       return (
-        <div className="whitespace-pre-line">
+        <div className="whitespace-pre-line text-slate-200 text-sm">
           {r.summary || "Keine Zusammenfassung gefunden."}
         </div>
       );
@@ -289,7 +375,7 @@ const App: React.FC = () => {
     if (m === "bullets") {
       const bullets = r.bullets ?? [];
       return (
-        <ul className="list-disc list-inside space-y-1">
+        <ul className="list-disc list-inside space-y-1 text-slate-200 text-sm">
           {bullets.map((b, i) => (
             <li key={i}>{b}</li>
           ))}
@@ -309,7 +395,7 @@ const App: React.FC = () => {
               <div className="text-xs uppercase text-slate-400">
                 Karte {i + 1}
               </div>
-              <div className="font-semibold mt-1">
+              <div className="font-semibold mt-1 text-slate-100">
                 ❓ {card.question}
               </div>
               <div className="mt-1 text-sm text-slate-200">
@@ -366,7 +452,7 @@ const App: React.FC = () => {
   // JSX
   // ─────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-6">
+    <div className="min-h-screen bg-slate-950 px-4 py-6 text-white">
       {/* TOP-BANNER */}
       <div className="max-w-6xl mx-auto mb-4">
         <AdBanner
@@ -389,13 +475,16 @@ const App: React.FC = () => {
         {/* Haupt-Card */}
         <div className="flex-1">
           <div className="w-full bg-slate-900/70 border border-slate-800 rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-1">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-1 text-white">
               Wissen-Kompaktor
             </h1>
 
-            {/* Nur der kurze grüne Satz bleibt */}
-            <p className="text-emerald-400 mb-4 text-sm sm:text-base">
-              Komprimiere Inhalte intelligent.
+            {/* Einleitungstext für Nutzer & AdSense */}
+            <p className="text-slate-200 mb-4 text-sm sm:text-base">
+              Komprimiere Inhalte intelligent. Der Wissen-Kompaktor hilft dir,
+              lange Texte in Sekunden in Zusammenfassungen, Stichpunkte,
+              Lernkarten oder kindgerechte Erklärungen zu verwandeln – ideal
+              für Schule, Studium, Beruf und schnelles Lernen.
             </p>
 
             {/* Modus-Auswahl */}
@@ -425,19 +514,15 @@ const App: React.FC = () => {
                 onChange={(e) =>
                   setLanguage(e.target.value as LanguageCode)
                 }
-                className={`text-xs rounded-lg border px-2 py-1 bg-slate-950/70 text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500 ${
-                  language === "de"
-                    ? "border-emerald-400 text-emerald-300"
-                    : "border-slate-700"
-                }`}
+                className="text-xs rounded-lg border px-2 py-1 bg-slate-950/70 text-slate-100 border-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500"
               >
-                {(
-                  Object.keys(LANGUAGE_LABELS) as LanguageCode[]
-                ).map((code) => (
-                  <option key={code} value={code}>
-                    {LANGUAGE_LABELS[code]}
-                  </option>
-                ))}
+                {(Object.keys(LANGUAGE_LABELS) as LanguageCode[]).map(
+                  (code) => (
+                    <option key={code} value={code}>
+                      {LANGUAGE_LABELS[code]}
+                    </option>
+                  )
+                )}
               </select>
             </div>
 
@@ -448,7 +533,7 @@ const App: React.FC = () => {
                   Eingabetext
                 </label>
                 <textarea
-                  className="flex-1 min-h-[220px] max-h-[60vh] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 resize-none overflow-y-auto"
+                  className="flex-1 min-h-[220px] max-h-[60vh] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 resize-none overflow-y-auto text-white"
                   placeholder="Füge hier deinen Text ein..."
                   value={text}
                   onChange={(e) => setText(e.target.value)}
