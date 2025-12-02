@@ -34,11 +34,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --------------------- Language Mapping ---------------------
+
+LANGUAGE_NAMES = {
+    "de": "Deutsch",
+    "en": "Englisch",
+    "es": "Spanisch",
+    "fr": "Französisch",
+    "tr": "Türkisch",
+    "ar": "Arabisch",
+    "ja": "Japanisch",
+    "zh": "Chinesisch",
+}
 
 # --------------------- Models ---------------------
 
+
 class CompactOptions(BaseModel):
-    language: str = "de"  # <-- Sprache standardmäßig Deutsch
+    language: str = "de"  # Standard: Deutsch
 
 
 class CompactRequest(BaseModel):
@@ -48,6 +61,7 @@ class CompactRequest(BaseModel):
 
 
 # --------------------- File Extract ---------------------
+
 
 async def extract_text_from_upload(file: UploadFile) -> str:
     filename = file.filename or "upload"
@@ -65,19 +79,20 @@ async def extract_text_from_upload(file: UploadFile) -> str:
         with open(tmp, "wb") as f:
             f.write(raw)
 
-        reader = PdfReader(tmp)
         text_parts = []
-        for page in reader.pages:
-            try:
-                t = page.extract_text() or ""
-                text_parts.append(t)
-            except:
-                pass
-
         try:
-            os.remove(tmp)
-        except:
-            pass
+            reader = PdfReader(tmp)
+            for page in reader.pages:
+                try:
+                    t = page.extract_text() or ""
+                    text_parts.append(t)
+                except Exception:
+                    pass
+        finally:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
 
         return "\n".join(text_parts)
 
@@ -86,15 +101,23 @@ async def extract_text_from_upload(file: UploadFile) -> str:
 
 # --------------------- Main Logic ---------------------
 
-def add_language_instruction(text: str, language: str) -> str:
-    """Fügt dem Text eine Sprachinstruktion hinzu."""
-    return f"Bitte antworte ausschließlich in **{language}**.\n\n{text}"
+
+def add_language_instruction(text: str, language_code: str) -> str:
+    """
+    Fügt dem Prompt eine klare Sprachinstruktion hinzu,
+    basierend auf dem Sprachcode vom Frontend.
+    """
+    lang_name = LANGUAGE_NAMES.get(language_code, language_code)
+    instruction = (
+        f"Bitte antworte ausschließlich in {lang_name}. "
+        "Strukturiere die Antwort klar und gut lesbar.\n\n"
+    )
+    return instruction + text
 
 
-def run_compact(client: OpenAI, text: str, mode: str, opts: CompactOptions):
-
-    lang = opts.language if opts else "de"
-    prompt_text = add_language_instruction(text, lang)
+def run_compact(client: OpenAI, text: str, mode: str, opts: Optional[CompactOptions]):
+    lang_code = opts.language if opts else "de"
+    prompt_text = add_language_instruction(text, lang_code)
 
     if mode == "summary":
         return process_summary(client, prompt_text)
@@ -118,6 +141,7 @@ def run_compact(client: OpenAI, text: str, mode: str, opts: CompactOptions):
 
 # --------------------- API ---------------------
 
+
 @app.post("/api/compact")
 def compact_text(req: CompactRequest):
     try:
@@ -133,12 +157,15 @@ def compact_text(req: CompactRequest):
 async def compact_file(
     mode: str = Form("summary"),
     language: str = Form("de"),
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
 ):
     try:
         text = await extract_text_from_upload(file)
         if not text.strip():
-            return {"success": False, "error": {"message": "Konnte Text nicht extrahieren"}}
+            return {
+                "success": False,
+                "error": {"message": "Konnte Text nicht extrahieren"},
+            }
 
         opts = CompactOptions(language=language)
         result = run_compact(client, text, mode, opts)
