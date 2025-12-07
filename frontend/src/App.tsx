@@ -289,9 +289,9 @@ So kannst du dir schnell einen Überblick verschaffen, ohne alles lesen zu müss
       if (m === "bullets") {
         return (
           <ul className="list-disc list-inside space-y-1 text-xs text-slate-200">
-            <li>⚡ Lange Texte werden automatisch gekürzt</li>
-            <li>📌 Wichtige Stichpunkte werden hervorgehoben</li>
-            <li>🎯 Ideal für Lernen, Prüfungsvorbereitung & Notizen</li>
+            <li> Lange Texte werden automatisch gekürzt</li>
+            <li> Wichtige Stichpunkte werden hervorgehoben</li>
+            <li> Ideal für Lernen, Prüfungsvorbereitung & Notizen</li>
           </ul>
         );
       }
