@@ -481,10 +481,7 @@ als würde man sie einem Kind in einfacher Sprache erzählen.`}
 
             {/* Einleitungstext für Nutzer & AdSense */}
             <p className="text-slate-200 mb-4 text-sm sm:text-base">
-              Komprimiere Inhalte intelligent. Der Wissen-Kompaktor hilft dir,
-              lange Texte in Sekunden in Zusammenfassungen, Stichpunkte,
-              Lernkarten oder kindgerechte Erklärungen zu verwandeln – ideal
-              für Schule, Studium, Beruf und schnelles Lernen.
+              Der Wissen-Kompaktor macht aus umfangreichen Texten präzise Kernaussagen und mehr...
             </p>
 
             {/* Modus-Auswahl */}
