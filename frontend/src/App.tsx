@@ -462,9 +462,9 @@ als würde man sie einem Kind in einfacher Sprache erzählen.`}
         />
       </div>
 
-      <div className="max-w-6xl mx-auto flex gap-4">
+      <div className="max-w-7xl mx-auto flex gap-6">
         {/* LINKES AD – nur auf XL-Screens sichtbar */}
-        <div className="hidden xl:block w-56">
+        <div className="hidden xl:block w-48">
           <AdBanner
             cookieConsent={cookieConsent}
             slot="5661393931" // Block Links
@@ -474,7 +474,7 @@ als würde man sie einem Kind in einfacher Sprache erzählen.`}
 
         {/* Haupt-Card */}
         <div className="flex-1">
-          <div className="w-full bg-slate-900/70 border border-slate-800 rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+          <div className="w-full bg-slate-900/80 border border-slate-700 rounded-3xl shadow-2xl p-6 sm:p-8 lg:p-10">
             <h1 className="text-2xl sm:text-3xl font-bold mb-1 text-white">
               Wissen-Kompaktor
             </h1>
@@ -661,7 +661,7 @@ als würde man sie einem Kind in einfacher Sprache erzählen.`}
         </div>
 
         {/* RECHTES AD – nur auf XL-Screens sichtbar */}
-        <div className="hidden xl:block w-56">
+        <div className="hidden xl:block w-48">
           <AdBanner
             cookieConsent={cookieConsent}
             slot="3822640606" // Block Rechts
