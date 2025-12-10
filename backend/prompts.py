@@ -29,7 +29,7 @@ def language_rule(language: str) -> str:
     return f"Schreibe ausschließlich in {label}."
 
 
-def build_summary_prompt(text: str, language: str) -> str:
+def build_summary_prompt(text: str, language: str = "de") -> str:
     lang_rule = language_rule(language)
     return f"""
 Fasse den folgenden Text klar und verständlich zusammen.
@@ -45,7 +45,7 @@ TEXT:
 """
 
 
-def build_bullet_prompt(text: str, language: str) -> str:
+def build_bullet_prompt(text: str, language: str = "de") -> str:
     lang_rule = language_rule(language)
     return f"""
 Erstelle prägnante Bulletpoints aus dem folgenden Text.
@@ -61,7 +61,7 @@ TEXT:
 """
 
 
-def build_flashcard_prompt(text: str, language: str) -> str:
+def build_flashcard_prompt(text: str, language: str = "de") -> str:
     lang_rule = language_rule(language)
     return f"""
 Erstelle Lernkarten aus dem folgenden Text.
@@ -81,7 +81,7 @@ TEXT:
 """
 
 
-def build_kids_prompt(text: str, language: str) -> str:
+def build_kids_prompt(text: str, language: str = "de") -> str:
     lang_rule = language_rule(language)
     return f"""
 Erkläre den folgenden Text so, dass ein Kind (10–12 Jahre) ihn verstehen kann.
@@ -98,7 +98,7 @@ TEXT:
 """
 
 
-def build_short_summary_prompt(text: str, language: str) -> str:
+def build_short_summary_prompt(text: str, language: str = "de") -> str:
     lang_rule = language_rule(language)
     return f"""
 Fasse den folgenden Text in GENAU fünf Sätzen zusammen.
@@ -115,7 +115,7 @@ TEXT:
 
 
 # Prüfungsfragen
-def build_exam_questions_prompt(text: str, language: str) -> str:
+def build_exam_questions_prompt(text: str, language: str = "de") -> str:
     lang_rule = language_rule(language)
     return f"""
 Erstelle aus dem folgenden Text prüfungsähnliche Fragen mit passenden Musterantworten.
@@ -136,8 +136,8 @@ TEXT:
 """
 
 
-#  Multiple-Choice-Quiz
-def build_quiz_prompt(text: str, language: str) -> str:
+# Multiple-Choice-Quiz
+def build_quiz_prompt(text: str, language: str = "de") -> str:
     lang_rule = language_rule(language)
     return f"""
 Erstelle aus dem folgenden Text ein Multiple-Choice-Quiz.
@@ -160,8 +160,8 @@ TEXT:
 """
 
 
-# 🆕 Spickzettel / Cheatsheet
-def build_cheatsheet_prompt(text: str, language: str) -> str:
+# Spickzettel / Cheatsheet
+def build_cheatsheet_prompt(text: str, language: str = "de") -> str:
     lang_rule = language_rule(language)
     return f"""
 Erstelle aus dem folgenden Text einen extrem kompakten Spickzettel (Cheatsheet).
