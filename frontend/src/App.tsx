@@ -52,9 +52,8 @@ const MODES: { id: Mode; label: string }[] = [
   { id: "flashcards", label: "Lernkarten" },
   { id: "kids", label: "Für Kinder erklärt" },
   { id: "short", label: "In 5 Sätzen" },
-  // 🆕 Power-User-Modi
   { id: "exam_questions", label: "Prüfungsfragen" },
-  { id: "quiz_mc", label: "Quiz (Multiple Choice)" },
+  { id: "quiz_mc", label: "Quiz" },
   { id: "cheatsheet", label: "Spickzettel" },
 ];
 
@@ -403,18 +402,19 @@ Frage 1: Wofür kannst du den Wissen-Kompaktor nutzen?
         );
       }
 
-      if (m === "cheatsheet") {
-        return (
-          <div className="text-xs text-slate-200 whitespace-pre-line">
-            {`Beispiel für „Spickzettel“:
+if (m === "cheatsheet") {
+  return (
+    <div className="text-xs text-slate-200 whitespace-pre-line">
+      {`Beispiel für „Spickzettel“ (Thema: Photosynthese):
 
-- Tool: Wissen-Kompaktor
-- Zweck: Lange Texte → kompakte Kernaussagen
-- Modi: Zusammenfassung, Stichpunkte, Lernkarten, Prüfungsfragen, Quiz, Spickzettel
-- Nutzen: Zeit sparen, besser lernen, schneller Überblick`}
-          </div>
-        );
-      }
+- Formel: 6 CO₂ + 6 H₂O → C₆H₁₂O₆ + 6 O₂
+- Ort: Chloroplasten (v. a. in Blättern)
+- Lichtreaktion: Bildung von ATP + NADPH, Spaltung von Wasser (O₂ entsteht)
+- Dunkelreaktion (Calvin-Zyklus): CO₂ wird mithilfe von ATP + NADPH zu Glucose aufgebaut
+- Merksatz: Ohne Licht keine Photosynthese – ohne Photosynthese kein Sauerstoff.`}
+    </div>
+  );
+}
 
       return (
         <div className="text-slate-500 text-xs">
@@ -541,11 +541,11 @@ Frage 1: Wofür kannst du den Wissen-Kompaktor nutzen?
         {/* Haupt-Card */}
         <div className="flex-1">
           <div
-            className="card-3d w-full rounded-3xl border border-emerald-500/10
+            className="card-3d w-full rounded-3xl border border-emerald-500/15
                        bg-slate-900/80 backdrop-blur-xl
-                       shadow-[0_32px_80px_rgba(0,0,0,0.85)]
+                       transform-gpu
                        p-6 sm:p-8 lg:p-10"
-          >
+>
             <h1 className="text-2xl sm:text-3xl font-bold mb-1 text-white">
               Wissen-Kompaktor
             </h1>
@@ -553,7 +553,7 @@ Frage 1: Wofür kannst du den Wissen-Kompaktor nutzen?
             {/* Einleitungstext für Nutzer & AdSense */}
             <p className="text-slate-200 mb-4 text-sm sm:text-base">
               Der Wissen-Kompaktor macht aus umfangreichen Texten präzise
-              Kernaussagen, Lernkarten, Prüfungsfragen, Quizze und mehr.
+              Kernaussagen, Lernkarten, Quiz und vieles mehr.
             </p>
 
             {/* Modus-Auswahl */}
