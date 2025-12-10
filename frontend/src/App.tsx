@@ -549,7 +549,7 @@ als würde man sie einem Kind in einfacher Sprache erzählen.`}
                 {/* Datei-Upload */}
                 <div className="mt-4">
                   <label className="text-xs font-medium text-slate-300">
-                    Oder lade eine PDF- oder Bilddatei hoch:
+                    lade eine PDF oder Bilddatei hoch:
                   </label>
                   <div className="mt-2">
                     <label className="inline-flex items-center px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-200 cursor-pointer hover:border-sky-500">
