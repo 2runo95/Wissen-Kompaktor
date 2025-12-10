@@ -2,43 +2,52 @@
 
 from typing import Dict
 
-# Optional: Mapping von Codes auf Klartext-Namen
+# Mapping von Codes auf englische Sprach-Namen
 LANGUAGE_LABELS: Dict[str, str] = {
-    "de": "Deutsch",
-    "deutsch": "Deutsch",
-    "en": "Englisch",
-    "english": "Englisch",
-    "en-us": "Englisch",
-    "fr": "Französisch",
-    "es": "Spanisch",
+    "de": "German",
+    "deutsch": "German",
+    "en": "English",
+    "english": "English",
+    "en-us": "English",
+    "fr": "French",
+    "es": "Spanish",
+    "tr": "Turkish",
+    "ar": "Arabic",
+    "ja": "Japanese",
+    "zh": "Chinese",
+    # Erweiterbar
 }
 
 
 def language_rule(language: str) -> str:
     """
-    Harte Sprachvorgabe – wird vom Modell nicht ignoriert.
+    Harte Sprachvorgabe – wird vom Modell kaum ignoriert.
     """
     if not language:
-        return (
-            "IMPORTANT: Answer exclusively in German. "
-            "Do NOT use any other language.\n"
-        )
+        language = "de"
 
     key = language.strip().lower()
     label = LANGUAGE_LABELS.get(key, language)
 
+    # Spezieller Fall: Deutsch
+    if key in ("de", "deutsch"):
+        return (
+            "IMPORTANT: Antworte ausschließlich auf Deutsch. "
+            "Verwende keine andere Sprache.\n"
+        )
+
+    # Alle anderen Sprachen
     return (
         f"IMPORTANT: Answer exclusively in {label}. "
-        f"Do NOT use any other language.\n"
+        "Do not use any other language, even if the input text "
+        "is written in a different language.\n"
     )
-
 
 
 def build_summary_prompt(text: str, language: str = "de") -> str:
     lang_rule = language_rule(language)
     return f"""
 {lang_rule}
-
 Fasse den folgenden Text klar und verständlich zusammen.
 
 Regeln:
@@ -51,14 +60,13 @@ TEXT:
 """
 
 
-
 def build_bullet_prompt(text: str, language: str = "de") -> str:
     lang_rule = language_rule(language)
     return f"""
+{lang_rule}
 Erstelle prägnante Bulletpoints aus dem folgenden Text.
 
 Regeln:
-- {lang_rule}
 - Jede Zeile ein klarer Punkt.
 - Keine langen Absätze.
 - Zwischen 5 und 100 Punkten.
@@ -71,6 +79,7 @@ TEXT:
 def build_flashcard_prompt(text: str, language: str = "de") -> str:
     lang_rule = language_rule(language)
     return f"""
+{lang_rule}
 Erstelle Lernkarten aus dem folgenden Text.
 
 Format:
@@ -78,7 +87,6 @@ Frage: <Frage>
 Antwort: <Antwort>
 
 Regeln:
-- {lang_rule}
 - Kurze, klare Fragen.
 - Antworten präzise, aber verständlich.
 - Mindestens 3 Karten, maximal 100.
@@ -91,10 +99,10 @@ TEXT:
 def build_kids_prompt(text: str, language: str = "de") -> str:
     lang_rule = language_rule(language)
     return f"""
+{lang_rule}
 Erkläre den folgenden Text so, dass ein Kind (10–12 Jahre) ihn verstehen kann.
 
 Regeln:
-- {lang_rule}
 - Verwende einfache Sätze.
 - Nutze Beispiele aus dem Alltag.
 - Erkläre schwierige Wörter.
@@ -108,10 +116,10 @@ TEXT:
 def build_short_summary_prompt(text: str, language: str = "de") -> str:
     lang_rule = language_rule(language)
     return f"""
+{lang_rule}
 Fasse den folgenden Text in GENAU fünf Sätzen zusammen.
 
 Regeln:
-- {lang_rule}
 - Klarer, verständlicher Fließtext.
 - Keine Aufzählungen.
 - Keine unwichtigen Details.
@@ -121,10 +129,10 @@ TEXT:
 """
 
 
-# Prüfungsfragen
 def build_exam_questions_prompt(text: str, language: str = "de") -> str:
     lang_rule = language_rule(language)
     return f"""
+{lang_rule}
 Erstelle aus dem folgenden Text prüfungsähnliche Fragen mit passenden Musterantworten.
 
 Format:
@@ -132,7 +140,6 @@ Frage: <Frage>
 Antwort: <Antwort>
 
 Regeln:
-- {lang_rule}
 - Kurze, klare Fragen.
 - Antworten präzise und verständlich.
 - Mindestens 3 und maximal 50 Fragen.
@@ -143,14 +150,13 @@ TEXT:
 """
 
 
-# Multiple-Choice-Quiz
 def build_quiz_prompt(text: str, language: str = "de") -> str:
     lang_rule = language_rule(language)
     return f"""
+{lang_rule}
 Erstelle aus dem folgenden Text ein Multiple-Choice-Quiz.
 
 Regeln:
-- {lang_rule}
 - Zu jeder Frage genau eine richtige und drei falsche, aber plausible Antworten.
 - Markiere die richtige Antwort mit (✔) am Anfang der richtigen Option.
 - Nummeriere die Fragen fortlaufend.
@@ -167,14 +173,13 @@ TEXT:
 """
 
 
-# Spickzettel / Cheatsheet
 def build_cheatsheet_prompt(text: str, language: str = "de") -> str:
     lang_rule = language_rule(language)
     return f"""
+{lang_rule}
 Erstelle aus dem folgenden Text einen extrem kompakten Spickzettel (Cheatsheet).
 
 Regeln:
-- {lang_rule}
 - Nutze kurze Bulletpoints.
 - Fokus auf Formeln, Definitionen, Schlüsselbegriffe, Merksätze.
 - Keine langen Erklärungen.
