@@ -1,21 +1,27 @@
+# processors/simple.py
+
 from openai import OpenAI
-from prompts import build_kids_prompt
 
 
-def process_simple(client: OpenAI, text: str) -> dict:
+def process_simple(client: OpenAI, prompt: str):
     """
-    Erklärt den Text so, dass ein Kind (10–12 Jahre) ihn versteht.
-    Ergebnis landet im Feld 'summary'.
+    Führt einen einfachen ChatCompletion-Aufruf aus.
+    Der Prompt MUSS vollständig sein (inkl. Sprache!).
     """
-    prompt = build_kids_prompt(text)
 
-    response = client.responses.create(
-        model="gpt-4.1-mini",
-        input=prompt,
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a helpful assistant that strictly follows instructions."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        temperature=0.4,
     )
 
-    output_text = response.output[0].content[0].text
-
-    return {
-        "summary": output_text,
-    }
+    return response.choices[0].message.content.strip()
