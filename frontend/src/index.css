@@ -3,6 +3,29 @@
 @tailwind utilities;
 
 body {
-  background-color: #020617; /* ungefähr bg-slate-950 */
-  color: #e5e7eb;           /* ungefähr text-slate-200 */
+  /* Dunkler Hintergrund mit leichtem Farbverlauf */
+  background:
+    radial-gradient(circle at 0% 0%, rgba(16, 185, 129, 0.18), transparent 55%),
+    radial-gradient(circle at 100% 100%, rgba(190, 242, 100, 0.12), transparent 55%),
+    #020617; /* ungefähr bg-slate-950 */
+  color: #e5e7eb; /* ungefähr text-slate-200 */
+}
+
+/* 3D-/Glow-Look für das Hauptfenster */
+.card-3d {
+  position: relative;
+  isolation: isolate;
+}
+
+.card-3d::before {
+  content: "";
+  position: absolute;
+  inset: -20px;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(16, 185, 129, 0.32), transparent 60%),
+    radial-gradient(circle at 100% 100%, rgba(190, 242, 100, 0.22), transparent 60%);
+  filter: blur(18px);
+  opacity: 0.9;
+  z-index: -1;
 }

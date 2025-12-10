@@ -2,7 +2,15 @@ import React, { useEffect, useState } from "react";
 import CookieBanner, { type CookieConsentValue } from "./CookieBanner";
 import AdBanner from "./AdBanner";
 
-type Mode = "summary" | "bullets" | "flashcards" | "kids" | "short";
+type Mode =
+  | "summary"
+  | "bullets"
+  | "flashcards"
+  | "kids"
+  | "short"
+  | "exam_questions"
+  | "quiz_mc"
+  | "cheatsheet";
 
 type LanguageCode = "de" | "en" | "es" | "fr" | "tr" | "ar" | "ja" | "zh";
 
@@ -44,6 +52,10 @@ const MODES: { id: Mode; label: string }[] = [
   { id: "flashcards", label: "Lernkarten" },
   { id: "kids", label: "Für Kinder erklärt" },
   { id: "short", label: "In 5 Sätzen" },
+  // 🆕 Power-User-Modi
+  { id: "exam_questions", label: "Prüfungsfragen" },
+  { id: "quiz_mc", label: "Quiz (Multiple Choice)" },
+  { id: "cheatsheet", label: "Spickzettel" },
 ];
 
 const App: React.FC = () => {
@@ -124,7 +136,7 @@ const App: React.FC = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        // WICHTIG: Sprache geht jetzt in options.language ans Backend
+        // Sprache geht in options.language ans Backend
         body: JSON.stringify({
           text,
           mode,
@@ -208,7 +220,14 @@ const App: React.FC = () => {
   // ─────────────────────────────────────────────
   const buildResultText = (): string => {
     if (!result) return "";
-    if (mode === "summary" || mode === "kids" || mode === "short") {
+    if (
+      mode === "summary" ||
+      mode === "kids" ||
+      mode === "short" ||
+      mode === "exam_questions" ||
+      mode === "quiz_mc" ||
+      mode === "cheatsheet"
+    ) {
       return result.summary ?? "";
     }
     if (mode === "bullets") {
@@ -289,9 +308,9 @@ So kannst du dir schnell einen Überblick verschaffen, ohne alles lesen zu müss
       if (m === "bullets") {
         return (
           <ul className="list-disc list-inside space-y-1 text-xs text-slate-200">
-            <li> Lange Texte werden automatisch gekürzt</li>
-            <li> Wichtige Stichpunkte werden hervorgehoben</li>
-            <li> Ideal für Lernen, Prüfungsvorbereitung & Notizen</li>
+            <li>Lange Texte werden automatisch gekürzt</li>
+            <li>Wichtige Stichpunkte werden hervorgehoben</li>
+            <li>Ideal für Lernen, Prüfungsvorbereitung & Notizen</li>
           </ul>
         );
       }
@@ -356,6 +375,47 @@ als würde man sie einem Kind in einfacher Sprache erzählen.`}
         );
       }
 
+      if (m === "exam_questions") {
+        return (
+          <div className="text-xs text-slate-200 whitespace-pre-line">
+            {`Beispiel für „Prüfungsfragen“:
+
+Frage: Was ist der Zweck des Wissen-Kompaktors?
+Antwort: Er fasst lange Texte so zusammen, dass man die wichtigsten Inhalte schnell erfassen kann.
+
+Frage: Für welche Situationen ist der Wissen-Kompaktor besonders hilfreich?
+Antwort: Zum Lernen für Prüfungen, zum Erstellen von Notizen und für schnelle Übersichten.`}
+          </div>
+        );
+      }
+
+      if (m === "quiz_mc") {
+        return (
+          <div className="text-xs text-slate-200 whitespace-pre-line">
+            {`Beispiel für „Quiz (Multiple Choice)“:
+
+Frage 1: Wofür kannst du den Wissen-Kompaktor nutzen?
+(✔) Zum Erstellen von Zusammenfassungen und Lernkarten
+(A) Zum Bearbeiten von Bildern
+(B) Zum Programmieren von Apps
+(C) Zum Versenden von E-Mails`}
+          </div>
+        );
+      }
+
+      if (m === "cheatsheet") {
+        return (
+          <div className="text-xs text-slate-200 whitespace-pre-line">
+            {`Beispiel für „Spickzettel“:
+
+- Tool: Wissen-Kompaktor
+- Zweck: Lange Texte → kompakte Kernaussagen
+- Modi: Zusammenfassung, Stichpunkte, Lernkarten, Prüfungsfragen, Quiz, Spickzettel
+- Nutzen: Zeit sparen, besser lernen, schneller Überblick`}
+          </div>
+        );
+      }
+
       return (
         <div className="text-slate-500 text-xs">
           Hier erscheint das Ergebnis.
@@ -364,10 +424,17 @@ als würde man sie einem Kind in einfacher Sprache erzählen.`}
     }
 
     // Ab hier: echtes Ergebnis anzeigen
-    if (m === "summary" || m === "kids" || m === "short") {
+    if (
+      m === "summary" ||
+      m === "kids" ||
+      m === "short" ||
+      m === "exam_questions" ||
+      m === "quiz_mc" ||
+      m === "cheatsheet"
+    ) {
       return (
         <div className="whitespace-pre-line text-slate-200 text-sm">
-          {r.summary || "Keine Zusammenfassung gefunden."}
+          {r.summary || "Keine Ausgabe gefunden."}
         </div>
       );
     }
@@ -430,13 +497,12 @@ als würde man sie einem Kind in einfacher Sprache erzählen.`}
               setResult(entry.result);
               setActiveTab("current");
             }}
-            className="w-full text-left rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2 hover:border-sky-500 transition"
+            className="w-full text-left rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2 hover:border-emerald-400/70 transition"
           >
             <div className="flex justify-between text-xs text-slate-400 mb-1">
               <span>{entry.timestamp}</span>
               <span>
-                {MODES.find((m) => m.id === entry.mode)?.label ??
-                  entry.mode}
+                {MODES.find((m) => m.id === entry.mode)?.label ?? entry.mode}
               </span>
             </div>
             <div className="text-xs text-slate-200 line-clamp-2">
@@ -474,14 +540,20 @@ als würde man sie einem Kind in einfacher Sprache erzählen.`}
 
         {/* Haupt-Card */}
         <div className="flex-1">
-          <div className="w-full bg-slate-900/80 border border-slate-700 rounded-3xl shadow-2xl p-6 sm:p-8 lg:p-10">
+          <div
+            className="card-3d w-full rounded-3xl border border-emerald-500/10
+                       bg-slate-900/80 backdrop-blur-xl
+                       shadow-[0_32px_80px_rgba(0,0,0,0.85)]
+                       p-6 sm:p-8 lg:p-10"
+          >
             <h1 className="text-2xl sm:text-3xl font-bold mb-1 text-white">
               Wissen-Kompaktor
             </h1>
 
             {/* Einleitungstext für Nutzer & AdSense */}
             <p className="text-slate-200 mb-4 text-sm sm:text-base">
-              Der Wissen-Kompaktor macht aus umfangreichen Texten präzise Kernaussagen und mehr...
+              Der Wissen-Kompaktor macht aus umfangreichen Texten präzise
+              Kernaussagen, Lernkarten, Prüfungsfragen, Quizze und mehr.
             </p>
 
             {/* Modus-Auswahl */}
@@ -492,8 +564,8 @@ als würde man sie einem Kind in einfacher Sprache erzählen.`}
                   onClick={() => setMode(m.id)}
                   className={`px-3 py-1.5 rounded-full text-sm border transition ${
                     mode === m.id
-                      ? "bg-sky-500 text-white border-sky-500"
-                      : "bg-slate-900 text-slate-200 border-slate-700 hover:border-slate-500"
+                      ? "bg-emerald-500 text-slate-950 border-emerald-500 shadow-md shadow-emerald-500/30"
+                      : "bg-slate-900 text-slate-200 border-slate-700 hover:border-emerald-400/60 hover:text-emerald-200"
                   }`}
                 >
                   {m.label}
@@ -511,7 +583,7 @@ als würde man sie einem Kind in einfacher Sprache erzählen.`}
                 onChange={(e) =>
                   setLanguage(e.target.value as LanguageCode)
                 }
-                className="text-xs rounded-lg border px-2 py-1 bg-slate-950/70 text-slate-100 border-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                className="text-xs rounded-lg border px-2 py-1 bg-slate-950/70 text-slate-100 border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
                 {(Object.keys(LANGUAGE_LABELS) as LanguageCode[]).map(
                   (code) => (
@@ -530,7 +602,7 @@ als würde man sie einem Kind in einfacher Sprache erzählen.`}
                   Eingabetext
                 </label>
                 <textarea
-                  className="flex-1 min-h-[220px] max-h-[60vh] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 resize-none overflow-y-auto text-white"
+                  className="flex-1 min-h-[220px] max-h-[60vh] rounded-xl bg-slate-950/70 border border-slate-700 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none overflow-y-auto text-white"
                   placeholder="Füge hier deinen Text ein..."
                   value={text}
                   onChange={(e) => setText(e.target.value)}
@@ -540,7 +612,7 @@ als würde man sie einem Kind in einfacher Sprache erzählen.`}
                   <button
                     type="button"
                     onClick={() => setText("")}
-                    className="hover:text-sky-400"
+                    className="hover:text-emerald-300"
                   >
                     Leeren
                   </button>
@@ -549,10 +621,10 @@ als würde man sie einem Kind in einfacher Sprache erzählen.`}
                 {/* Datei-Upload */}
                 <div className="mt-4">
                   <label className="text-xs font-medium text-slate-300">
-                    lade eine PDF oder Bilddatei hoch:
+                    Lade eine PDF oder Bilddatei hoch:
                   </label>
                   <div className="mt-2">
-                    <label className="inline-flex items-center px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-200 cursor-pointer hover:border-sky-500">
+                    <label className="inline-flex items-center px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-200 cursor-pointer hover:border-emerald-400/70">
                       Datei auswählen (PDF/Bild)
                       <input
                         type="file"
@@ -567,13 +639,18 @@ als würde man sie einem Kind in einfacher Sprache erzählen.`}
                 <button
                   onClick={handleSubmit}
                   disabled={loading}
-                  className="mt-4 inline-flex items-center justify-center rounded-xl bg-sky-500 hover:bg-sky-600 disabled:bg-sky-900 px-4 py-2 text-sm font-semibold transition"
+                  className="mt-4 inline-flex items-center justify-center rounded-xl
+                             bg-gradient-to-r from-emerald-500 via-emerald-400 to-lime-300
+                             hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed
+                             px-4 py-2 text-sm font-semibold text-slate-950
+                             transition transform active:scale-[0.99]
+                             shadow-lg shadow-emerald-500/25"
                 >
                   {loading ? "Wird verarbeitet..." : "Kompaktieren"}
                 </button>
 
                 {error && (
-                  <div className="mt-3 text-xs text-red-400 bg-red-900/30 border border-red-800 px-3 py-2 rounded-lg">
+                  <div className="mt-3 text-xs text-red-300 bg-red-900/30 border border-red-800 px-3 py-2 rounded-lg">
                     {error}
                   </div>
                 )}
@@ -588,8 +665,8 @@ als würde man sie einem Kind in einfacher Sprache erzählen.`}
                     onClick={() => setActiveTab("current")}
                     className={`text-xs px-2 py-1 rounded-full border ${
                       activeTab === "current"
-                        ? "bg-sky-500 border-sky-500 text-white"
-                        : "border-slate-700 text-slate-300"
+                        ? "bg-emerald-500 border-emerald-500 text-slate-950 shadow-sm shadow-emerald-500/40"
+                        : "border-slate-700 text-slate-300 hover:border-emerald-400/60"
                     }`}
                   >
                     Aktuell
@@ -599,8 +676,8 @@ als würde man sie einem Kind in einfacher Sprache erzählen.`}
                     onClick={() => setActiveTab("history")}
                     className={`text-xs px-2 py-1 rounded-full border ${
                       activeTab === "history"
-                        ? "bg-sky-500 border-sky-500 text-white"
-                        : "border-slate-700 text-slate-300"
+                        ? "bg-emerald-500 border-emerald-500 text-slate-950 shadow-sm shadow-emerald-500/40"
+                        : "border-slate-700 text-slate-300 hover:border-emerald-400/60"
                     }`}
                   >
                     Zuletzt gemacht
@@ -610,28 +687,28 @@ als würde man sie einem Kind in einfacher Sprache erzählen.`}
                     <button
                       type="button"
                       onClick={handleCopy}
-                      className="hover:text-sky-400"
+                      className="hover:text-emerald-300"
                     >
                       Kopieren
                     </button>
                     <button
                       type="button"
                       onClick={handleDownloadTxt}
-                      className="hover:text-sky-400"
+                      className="hover:text-emerald-300"
                     >
                       .txt
                     </button>
                     <button
                       type="button"
                       onClick={handleDownloadPdf}
-                      className="hover:text-sky-400"
+                      className="hover:text-emerald-300"
                     >
                       .pdf
                     </button>
                     <button
                       type="button"
                       onClick={handleDownloadImage}
-                      className="hover:text-sky-400"
+                      className="hover:text-emerald-300"
                     >
                       Bild
                     </button>
