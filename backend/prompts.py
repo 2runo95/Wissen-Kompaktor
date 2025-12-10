@@ -11,31 +11,37 @@ LANGUAGE_LABELS: Dict[str, str] = {
     "en-us": "Englisch",
     "fr": "Französisch",
     "es": "Spanisch",
-    # kannst du nach Bedarf erweitern
 }
 
 
 def language_rule(language: str) -> str:
     """
-    Erzeugt eine einheitliche Sprach-Regel wie:
-    'Schreibe ausschließlich in Deutsch.'
+    Harte Sprachvorgabe – wird vom Modell nicht ignoriert.
     """
     if not language:
-        # Fallback, wenn nichts gesetzt ist
-        return "Schreibe ausschließlich in Deutsch."
+        return (
+            "IMPORTANT: Answer exclusively in German. "
+            "Do NOT use any other language.\n"
+        )
 
     key = language.strip().lower()
     label = LANGUAGE_LABELS.get(key, language)
-    return f"Schreibe ausschließlich in {label}."
+
+    return (
+        f"IMPORTANT: Answer exclusively in {label}. "
+        f"Do NOT use any other language.\n"
+    )
+
 
 
 def build_summary_prompt(text: str, language: str = "de") -> str:
     lang_rule = language_rule(language)
     return f"""
+{lang_rule}
+
 Fasse den folgenden Text klar und verständlich zusammen.
 
 Regeln:
-- {lang_rule}
 - Fokus auf die wichtigsten Aussagen.
 - Keine überflüssigen Details.
 - Länge: 4–8 Sätze.
@@ -43,6 +49,7 @@ Regeln:
 TEXT:
 {text}
 """
+
 
 
 def build_bullet_prompt(text: str, language: str = "de") -> str:
