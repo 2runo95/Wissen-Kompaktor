@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import Optional, Any, Dict, List
 
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,12 +8,20 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from PyPDF2 import PdfReader
 
-# Prozessoren
-from processors.summary import process_summary
-from processors.bullets import process_bullets
-from processors.flashcards import process_flashcards
+# Nur noch der generische Prozessor
 from processors.simple import process_simple
-from prompts import build_kids_prompt, build_short_summary_prompt
+
+# Prompt-Builder (mit language-Parameter)
+from prompts import (
+    build_summary_prompt,
+    build_bullet_prompt,
+    build_flashcard_prompt,
+    build_kids_prompt,
+    build_short_summary_prompt,
+    build_exam_questions_prompt,
+    build_quiz_prompt,
+    build_cheatsheet_prompt,
+)
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -33,19 +41,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# --------------------- Language Mapping ---------------------
-
-LANGUAGE_NAMES = {
-    "de": "Deutsch",
-    "en": "Englisch",
-    "es": "Spanisch",
-    "fr": "Französisch",
-    "tr": "Türkisch",
-    "ar": "Arabisch",
-    "ja": "Japanisch",
-    "zh": "Chinesisch",
-}
 
 # --------------------- Models ---------------------
 
@@ -99,42 +94,116 @@ async def extract_text_from_upload(file: UploadFile) -> str:
     return ""
 
 
+# --------------------- Helper ---------------------
+
+
+def _to_summary_text(raw: Any) -> str:
+    """
+    Hilfsfunktion: aus dem Rückgabewert von process_simple
+    den reinen Text extrahieren.
+    """
+    if isinstance(raw, dict) and "summary" in raw:
+        return str(raw["summary"])
+    return str(raw)
+
+
+def _wrap_summary(raw: Any) -> Dict[str, str]:
+    """
+    Stellt sicher, dass wir immer ein Objekt { "summary": "<text>" } zurückgeben.
+    """
+    if isinstance(raw, dict) and "summary" in raw:
+        return {"summary": str(raw["summary"])}
+    return {"summary": str(raw)}
+
+
 # --------------------- Main Logic ---------------------
 
 
-def add_language_instruction(text: str, language_code: str) -> str:
-    """
-    Fügt dem Prompt eine klare Sprachinstruktion hinzu,
-    basierend auf dem Sprachcode vom Frontend.
-    """
-    lang_name = LANGUAGE_NAMES.get(language_code, language_code)
-    instruction = (
-        f"Bitte antworte ausschließlich in {lang_name}. "
-        "Strukturiere die Antwort klar und gut lesbar.\n\n"
-    )
-    return instruction + text
+def run_compact(
+    client: OpenAI, text: str, mode: str, opts: Optional[CompactOptions]
+) -> Dict[str, Any]:
+    language = (opts.language if opts and opts.language else "de").strip()
 
-
-def run_compact(client: OpenAI, text: str, mode: str, opts: Optional[CompactOptions]):
-    lang_code = opts.language if opts else "de"
-    prompt_text = add_language_instruction(text, lang_code)
-
+    # Zusammenfassung (4–8 Sätze)
     if mode == "summary":
-        return process_summary(client, prompt_text)
+        prompt = build_summary_prompt(text, language)
+        raw = process_simple(client, prompt)
+        return _wrap_summary(raw)
 
+    # Stichpunkte
     if mode == "bullets":
-        return process_bullets(client, prompt_text)
+        prompt = build_bullet_prompt(text, language)
+        raw = process_simple(client, prompt)
+        summary_text = _to_summary_text(raw)
 
+        lines = summary_text.splitlines()
+        bullets: List[str] = []
+        for line in lines:
+            s = line.strip()
+            if not s:
+                continue
+            # führende Bullet-Zeichen entfernen
+            if s[0] in "-•*":
+                s = s[1:].strip()
+            bullets.append(s)
+
+        return {"bullets": bullets}
+
+    # Lernkarten (Frage/Antwort)
     if mode == "flashcards":
-        return process_flashcards(client, prompt_text)
+        prompt = build_flashcard_prompt(text, language)
+        raw = process_simple(client, prompt)
+        text_out = _to_summary_text(raw)
 
+        blocks = text_out.split("\n\n")
+        cards: List[Dict[str, str]] = []
+
+        for block in blocks:
+            lines = [ln.strip() for ln in block.splitlines() if ln.strip()]
+            if not lines:
+                continue
+            question = None
+            answer = None
+            for line in lines:
+                lower = line.lower()
+                if lower.startswith("frage:"):
+                    question = line.split(":", 1)[1].strip()
+                elif lower.startswith("antwort:"):
+                    answer = line.split(":", 1)[1].strip()
+            if question and answer:
+                cards.append({"question": question, "answer": answer})
+
+        return {"cards": cards}
+
+    # Für Kinder erklärt
     if mode == "kids":
-        prompt = build_kids_prompt(prompt_text)
-        return process_simple(client, prompt)
+        prompt = build_kids_prompt(text, language)
+        raw = process_simple(client, prompt)
+        return _wrap_summary(raw)
 
+    # In 5 Sätzen
     if mode == "short":
-        prompt = build_short_summary_prompt(prompt_text)
-        return process_simple(client, prompt)
+        prompt = build_short_summary_prompt(text, language)
+        raw = process_simple(client, prompt)
+        return _wrap_summary(raw)
+
+    # Prüfungsfragen
+    if mode == "exam_questions":
+        prompt = build_exam_questions_prompt(text, language)
+        raw = process_simple(client, prompt)
+        return _wrap_summary(raw)
+
+    # Multiple-Choice-Quiz
+    if mode == "quiz_mc":
+        prompt = build_quiz_prompt(text, language)
+        raw = process_simple(client, prompt)
+        return _wrap_summary(raw)
+
+    # Spickzettel / Cheatsheet
+    if mode == "cheatsheet":
+        prompt = build_cheatsheet_prompt(text, language)
+        raw = process_simple(client, prompt)
+        return _wrap_summary(raw)
 
     raise ValueError(f"Unbekannter Modus: {mode}")
 
@@ -144,13 +213,13 @@ def run_compact(client: OpenAI, text: str, mode: str, opts: Optional[CompactOpti
 
 @app.post("/api/compact")
 def compact_text(req: CompactRequest):
-    try:
-        opts = req.options or CompactOptions()
-        result = run_compact(client, req.text, req.mode, opts)
-        return {"success": True, "result": result}
-    except Exception as e:
-        print("Error /api/compact:", e)
-        return {"success": False, "error": {"message": str(e)}}
+  try:
+      opts = req.options or CompactOptions()
+      result = run_compact(client, req.text, req.mode, opts)
+      return {"success": True, "result": result}
+  except Exception as e:
+      print("Error /api/compact:", e)
+      return {"success": False, "error": {"message": str(e)}}
 
 
 @app.post("/api/compact-file")
@@ -174,3 +243,4 @@ async def compact_file(
     except Exception as e:
         print("Error /api/compact-file:", e)
         return {"success": False, "error": {"message": str(e)}}
+
